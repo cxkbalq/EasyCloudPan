@@ -1,138 +1,171 @@
 package com.example.easycloudpan.utils;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
 import javax.imageio.ImageIO;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.Base64;
 import java.util.Random;
 
+/**
+ * @Author : JCccc
+ * @CreateTime : 2019/9/25
+ * @Description :
+ **/
+@Component
+@Slf4j
 public class CreateImageCodeUtils {
 
-    // 图片高度
-    private int width = 160;
-    // 图片宽度
-    private int height = 40;
-    // 验证码字符个数
-    private int codeCount = 4;
-    // 验证码干扰线数
-    private int lineCount = 20;
-    // 验证码
-    private String code;
-    // 验证码图片Buffer
-    private BufferedImage buffImg;
-    Random random = new Random();
 
-    public CreateImageCodeUtils() {
-        createImage();
+    private static Random random = new Random();
+    private int width = 165; //验证码的宽
+    private int height = 45; //验证码的高
+    private int lineSize = 30; //验证码中夹杂的干扰线数量
+    private int randomStrNum = 4; //验证码字符个数
+
+    private String randomString = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWSYZ";
+    private final String sessionKey = "CODE";
+
+    //字体的设置
+    private Font getFont() {
+        return new Font("Times New Roman", Font.ROMAN_BASELINE, 40);
     }
 
-    public CreateImageCodeUtils(int width, int height) {
-        this.width = width;
-        this.height = height;
-        createImage();
-    }
+    //颜色的设置
+    private static Color getRandomColor(int fc, int bc) {
 
-    public CreateImageCodeUtils(int width, int height, int codeCount) {
-        this.width = width;
-        this.height = height;
-        this.codeCount = codeCount;
-        createImage();
-    }
+        fc = Math.min(fc, 255);
+        bc = Math.min(bc, 255);
 
-    public CreateImageCodeUtils(int width, int height, int codeCount, int lineCount) {
-        this.width = width;
-        this.height = height;
-        this.codeCount = codeCount;
-        this.lineCount = lineCount;
-        createImage();
-    }
+        int r = fc + random.nextInt(bc - fc - 16);
+        int g = fc + random.nextInt(bc - fc - 14);
+        int b = fc + random.nextInt(bc - fc - 12);
 
-    private void createImage() {
-        int fontWidth = width / codeCount; // 字体的宽度
-        int fontHeight = height - 5; // 字体的高度
-        int codeY = height - 8;
-
-        // 图像buffer
-        buffImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        Graphics g = buffImg.getGraphics();
-        // 设置背景色
-        g.setColor(getRandColor(200, 250));
-        g.fillRect(0, 0, width, height);
-        // 设置字体
-        Font font = new Font("Fixedsys", Font.BOLD, fontHeight);
-        g.setFont(font);
-
-        // 设置干扰线
-        for (int i = 0; i < lineCount; i++) {
-            int xs = random.nextInt(width);
-            int ys = random.nextInt(height);
-            int xe = xs + random.nextInt(width);
-            int ye = ys + random.nextInt(height);
-            g.setColor(getRandColor(1, 255));
-            g.drawLine(xs, ys, xe, ye);
-        }
-
-        // 添加躁点
-        float yawpRate = 0.01f; // 噪声率
-        int area = (int) (yawpRate * width * height);
-        for (int i = 0; i < area; i++) {
-            int x = random.nextInt(width);
-            int y = random.nextInt(height);
-            buffImg.setRGB(x, y, random.nextInt(255));
-        }
-
-        // 得到随机字符
-        String str1 = randomStr(codeCount);
-        this.code = str1;
-        for (int i = 0; i < codeCount; i++) {
-            String strRand = str1.substring(i, i + 1);
-            g.setColor(getRandColor(1, 255));
-            g.drawString(strRand, i * fontWidth + 3, codeY);
-        }
-    }
-
-    // 得到随机字符
-    private String randomStr(int n) {
-        String str1 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890";
-        StringBuilder str2 = new StringBuilder();
-        int len = str1.length() - 1;
-        double r;
-        for (int i = 0; i < n; i++) {
-            r = (Math.random()) * len;
-            str2.append(str1.charAt((int) r));
-        }
-        return str2.toString();
-    }
-
-    // 得到随机颜色
-    private Color getRandColor(int fc, int bc) {
-        if (fc > 255) fc = 255;
-        if (bc > 255) bc = 255;
-        int r = fc + random.nextInt(bc - fc);
-        int g = fc + random.nextInt(bc - fc);
-        int b = fc + random.nextInt(bc - fc);
         return new Color(r, g, b);
     }
 
-    // 得到随机字体
-    private Font getFont(int size) {
-        Random random = new Random();
-        Font[] fonts = new Font[5];
-        fonts[0] = new Font("Ravie", Font.PLAIN, size);
-        fonts[1] = new Font("Antique Olive Compact", Font.PLAIN, size);
-        fonts[2] = new Font("Fixedsys", Font.PLAIN, size);
-        fonts[3] = new Font("Wide Latin", Font.PLAIN, size);
-        fonts[4] = new Font("Gill Sans Ultra Bold", Font.PLAIN, size);
-        return fonts[random.nextInt(5)];
+    //干扰线的绘制
+    private void drawLine(Graphics g) {
+        int x = random.nextInt(width);
+        int y = random.nextInt(height);
+        int xl = random.nextInt(20);
+        int yl = random.nextInt(10);
+        g.drawLine(x, y, x + xl, y + yl);
+
     }
 
-    public void write(OutputStream sos) throws IOException {
-        ImageIO.write(buffImg, "png", sos);
-        sos.close();
+    //随机字符的获取
+    private String getRandomString(int num) {
+        num = num > 0 ? num : randomString.length();
+        return String.valueOf(randomString.charAt(random.nextInt(num)));
     }
 
-    public String getCode() {
-        return code.toLowerCase();
+    //字符串的绘制
+    private String drawString(Graphics g, String randomStr, int i) {
+        g.setFont(getFont());
+        g.setColor(getRandomColor(108, 190));
+        //log.info();(random.nextInt(randomString.length()));
+        String rand = getRandomString(random.nextInt(randomString.length()));
+        randomStr += rand;
+        g.translate(random.nextInt(3), random.nextInt(6));
+        g.drawString(rand, 40 * i + 10, 25);
+        return randomStr;
     }
+
+
+    //生成随机图片
+    public void getRandomCodeImage(HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession();
+        // BufferedImage类是具有缓冲区的Image类,Image类是用于描述图像信息的类
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_BGR);
+        Graphics g = image.getGraphics();
+        g.fillRect(0, 0, width, height);
+        g.setColor(getRandomColor(105, 189));
+        g.setFont(getFont());
+        // 干扰线
+        for (int i = 0; i < lineSize; i++) {
+            drawLine(g);
+        }
+        // 随机字符
+        String randomStr = "";
+        for (int i = 0; i < randomStrNum; i++) {
+            randomStr = drawString(g, randomStr, i);
+        }
+        log.info("随机字符：" + randomStr);
+        g.dispose();
+        //移除之前的session中的验证码信息
+        session.removeAttribute(sessionKey);
+        //重新将验证码放入session
+        session.setAttribute(sessionKey, randomStr);
+        try {
+            //  将图片以png格式返回,返回的是图片
+            ImageIO.write(image, "PNG", response.getOutputStream());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    //生成随机图片的base64编码字符串
+
+    public String getRandomCodeBase64(HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession();
+        // BufferedImage类是具有缓冲区的Image类,Image类是用于描述图像信息的类
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_BGR);
+        Graphics g = image.getGraphics();
+        g.fillRect(0, 0, width, height);
+        g.setColor(getRandomColor(105, 189));
+        g.setFont(getFont());
+        //干扰线
+        for (int i = 0; i < lineSize; i++) {
+            drawLine(g);
+        }
+
+        //随机字符
+        String randomStr = "";
+        for (int i = 0; i < randomStrNum; i++) {
+            randomStr = drawString(g, randomStr, i);
+        }
+        log.info("随机字符：" + randomStr);
+        g.dispose();
+        session.removeAttribute(sessionKey);
+        session.setAttribute(sessionKey, randomStr);
+        String base64String = "";
+        try {
+            //  直接返回图片
+            //  ImageIO.write(image, "PNG", response.getOutputStream());
+            //返回 base64
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ImageIO.write(image, "PNG", bos);
+
+            byte[] bytes = bos.toByteArray();
+            Base64.Encoder encoder = Base64.getEncoder();
+            base64String = encoder.encodeToString(bytes);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return base64String;
+    }
+
+    // 用于生成指定个数的随机字符
+    public String getgenerateRandomString() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 4; i++) {
+            sb.append(getRandomString(randomStrNum));
+        }
+        return sb.toString();
+    }
+
 }
+
+
+

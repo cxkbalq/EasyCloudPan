@@ -24,12 +24,13 @@ public class FileInfo implements Serializable {
     /**
      * 文件ID
      */
+    @TableId(value = "file_id")
     private String id;
 
     /**
      * 用户ID
      */
-    private String userId;
+    private Long userId;
 
     /**
      * 文件MD5值
@@ -49,7 +50,7 @@ public class FileInfo implements Serializable {
     /**
      * 文件名
      */
-    private String filename;
+    private String fileName;
 
     /**
      * 文件封面
@@ -89,13 +90,13 @@ public class FileInfo implements Serializable {
     /**
      * 乐观锁
      */
-    @Version
-    private Integer version;
+/*    @Version
+    private Integer version;*/
 
     /**
      * 0:正常 1:回收站 2:删除
      */
-    private Integer deleted;
+    private Integer delFlag;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

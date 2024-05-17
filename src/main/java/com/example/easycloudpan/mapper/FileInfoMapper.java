@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.example.easycloudpan.pojo.FileInfo;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import java.util.List;
  * @author sw-code
  * @since 2023-05-19
  */
+@Mapper
 public interface FileInfoMapper extends BaseMapper<FileInfo> {
 
 }

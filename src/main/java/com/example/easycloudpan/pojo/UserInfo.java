@@ -24,12 +24,12 @@ public class UserInfo implements Serializable {
      * 主键
      */
     @TableId(value = "id")
-    private String id;
+    private String userId;
 
     /**
      * 昵称
      */
-    private String nickname;
+    private String nickName;
 
     /**
      * 邮箱
@@ -74,14 +74,14 @@ public class UserInfo implements Serializable {
     /**
      * 乐观锁
      */
-    @Version
-    private Integer version;
+//    @Version
+//    private Integer version;
 
     /**
      * 逻辑删除 0:删除 1:正常
      */
-    @TableLogic
-    private Integer deleted;
+//    @TableLogic
+//    private Integer deleted;
 
     /**
      * 创建时间
