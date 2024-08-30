@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 
 import java.io.Serializable;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -25,7 +26,7 @@ public class FileInfo implements Serializable {
      * 文件ID
      */
     @TableId(value = "file_id")
-    private String id;
+    private String fileId;
 
     /**
      * 用户ID
@@ -82,9 +83,10 @@ public class FileInfo implements Serializable {
      */
     private Integer status;
 
-    /**
-     * 进入回收站时间
-     */
+/*    *
+     * 进入回收站时间*/
+    //通一时间格式
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime recoveryTime;
 
     /**
@@ -97,12 +99,12 @@ public class FileInfo implements Serializable {
      * 0:正常 1:回收站 2:删除
      */
     private Integer delFlag;
-
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
-
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
+    private LocalDateTime lastUpdateTime;
 
 
 }

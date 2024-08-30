@@ -4,4 +4,9 @@ db:
   pw: 2004
   hostredis: localhost
 path:
-  lujin: E:\code\java\EasyCloudPan\src\main\resources\image\
+  lujin: E:\code\java\EasyCloudPan\src\main\resources\res\image\
+  temp:  D:\Downloads\temp\
+  file: D:\Downloads\file\
+#  imag: D:\Downloads\file\
+#  mp4: D:\Downloads\file\
+#  orter: D:\Downloads\file\

@@ -21,14 +21,14 @@ import java.io.File;
 
 @Component
 @Slf4j
+
 public class MailUtil {
 
     @Value("${spring.mail.username}")
     private String MAIL_SENDER; //邮件发送者
     @Autowired
     private SpringTemplateEngine templateEngine;
-    @Autowired
-    private JavaMailSender javaMailSender;//注入QQ发送邮件的bean
+
     /**
      * 发送文本邮件
      * <p>
@@ -79,32 +79,4 @@ public class MailUtil {
     }
 
 
-//    public Boolean sendSimpleMail(String to,String text) {
-//        try {
-//            SimpleMailMessage mailMessage= new SimpleMailMessage();
-//            mailMessage.setFrom(MAIL_SENDER);//发送者
-//            mailMessage.setTo(to);//接收者
-//            mailMessage.setSubject("EasyCloudPan");//邮件标题
-////            mailMessage.setText("你的验证码为："+text+"    5分钟内有效，请尽快查收！");//邮件内容
-////            String type = javaMailSender.send(");
-////            System.out.println(type);
-////            javaMailSender.send(mailMessage);//发送邮箱
-//            String s = replaceSubject("EasyCloudPan", "", text, to);
-//            cn.hutool.extra.mail.MailUtil.send(to, "EasyCloudPan", s, true);
-//            log.info("验证码发送成功！");
-//            return true;
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            log.error("邮件发送失败", e.getMessage());
-//            return false;
-//        }
-//    }
-//    public String replaceSubject(String subject, String images, String content, String userName) {
-//    Context context = new Context();
-//    context.setVariable("subject", subject);
-//    context.setVariable("imgasPath", images);
-//    context.setVariable("context", content);
-//    context.setVariable("userName", userName);
-//    return templateEngine.process("mail", context);
-//}
 }

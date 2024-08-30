@@ -1,4 +1,4 @@
-package com.example.easycloudpan.entity.dto;
+package com.example.easycloudpan.pojo.dto;
 
 import lombok.Data;
 

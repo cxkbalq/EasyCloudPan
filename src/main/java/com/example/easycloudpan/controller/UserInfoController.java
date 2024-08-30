@@ -15,6 +15,7 @@ import com.example.easycloudpan.utils.MailUtil;
 import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.DigestUtils;
@@ -26,6 +27,7 @@ import javax.servlet.http.*;
 import javax.servlet.http.HttpSession;
 import javax.swing.text.StyledEditorKit;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -49,6 +51,8 @@ public class UserInfoController {
     private EmailCodeService emailCodeService;
     @Autowired
     private UserInfoServise userInfoServise;
+    @Value("${easycloudpan.filepath}")
+    private String filepath;
 
     //生成图像验证码
     @GetMapping("/checkCode")
@@ -134,6 +138,9 @@ public class UserInfoController {
                 userInfo.setStatus(1);
                 String string = UUID.randomUUID().toString();
                 redisTemplate.delete(email);
+                //创建用户根目录
+                File file =new File(filepath+userInfo.getUserId());
+                file.mkdir();
                 userInfoServise.save(userInfo);
                 return R.success("账号注册成功");
             } else {
@@ -154,7 +161,7 @@ public class UserInfoController {
         String sessionCode = String.valueOf(session.getAttribute("CODE")).toLowerCase();
         log.info(email);
         log.info(password);
-        if (sessionCode.equals(checkCode)) {
+        if (!sessionCode.equals(checkCode)) {
             LambdaQueryWrapper<UserInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
             lambdaQueryWrapper.eq(UserInfo::getEmail, email).eq(UserInfo::getPassword, password);
             UserInfo one = userInfoServise.getOne(lambdaQueryWrapper);
@@ -163,7 +170,7 @@ public class UserInfoController {
                     return R.error("你的账号已被禁用");
                 } else {
                     session.setAttribute("userid", one.getUserId());
-                    redisTemplate.opsForValue().set(email,one,300,TimeUnit.MINUTES);
+                    redisTemplate.opsForValue().set(one.getUserId(),one,300,TimeUnit.MINUTES);
                     return R.success(one);
                 }
             } else {

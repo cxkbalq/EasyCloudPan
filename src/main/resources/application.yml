@@ -12,6 +12,9 @@ spring:
     url: jdbc:mysql://${db.hostmysql}:3306/easypan
     username: root
     password: ${db.pw}
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
   mvc:
     dispatch-options-request: true
   #开发环境的设定
@@ -20,8 +23,8 @@ spring:
   servlet:
     #上传文件大小的限制
     multipart:
-      max-file-size: 10MB
-      max-request-size: 15MB
+      max-file-size: 1000MB
+      max-request-size: 1500MB
   application:
     name: springdataredis_demo
   #Redis相关配置
@@ -83,6 +86,13 @@ logging:
 #自定义配置
 easycloudpan:
   imgepath: ${path.lujin}
+  temppath: ${path.temp}
+  filepath: ${path.file}
+#ffmpeg
+ffmpeg:
+  ffmpegFile: D:/tools/ffmpeg/bin/ffmpeg.exe #ffmpeg可执行文件路径
+  outputVideoSuffix: .mp4 #输出视频的后缀名
+  outputCoverSuffix: .jpg #输出缩略图的后缀名
 #支付宝相关配置
 #APPID
 alipay:
