@@ -60,6 +60,7 @@ public class FileInfoController {
         /*        Page<FileInfo> page=new Page<>(1,15);*/
         //构建查询条件
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(FileInfo::getDelFlag,0);
         if (filePid == null) {
             filePid = String.valueOf(0);
         }
@@ -79,9 +80,7 @@ public class FileInfoController {
         fileInfoDto.setPageNo(Long.valueOf(pageNo));
         fileInfoDto.setPageTotal(page1.getTotal());
         fileInfoDto.setTotalCount(page1.getCurrent());
-        log.info(fileInfoDto.toString());
-        log.info(fileInfoDto.toString());
-        log.info(fileInfoDto.toString());
+
         return R.success(fileInfoDto);
     }
 
@@ -138,7 +137,6 @@ public class FileInfoController {
      * @param filePid
      * @return
      */
-
     @PostMapping("/newFoloder")
     public R<String> newFoloder(HttpSession session, @RequestParam("fileId") String fileId,
                                 @RequestParam("fileName") String fileName,
@@ -160,7 +158,7 @@ public class FileInfoController {
         fileInfo.setFileId(new StringUtil().generateRandomString(10));
         fileInfo.setStatus(2);
         fileInfo.setFolderType(1);
-        fileInfo.setDelFlag(1);
+        fileInfo.setDelFlag(0);
         fileInfo.setCreateTime(LocalDateTime.now());
         fileInfo.setLastUpdateTime(LocalDateTime.now());
         fileInfoService.save(fileInfo);
@@ -231,6 +229,7 @@ public class FileInfoController {
         LambdaUpdateWrapper<FileInfo> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
         lambdaUpdateWrapper.eq(FileInfo::getUserId, userid).eq(FileInfo::getFileId, fileId);
         lambdaUpdateWrapper.set(FileInfo::getFileName, fileName);
+        lambdaUpdateWrapper.set(FileInfo::getLastUpdateTime,LocalDateTime.now());
         fileInfoService.update(lambdaUpdateWrapper);
         return R.success("重命名成功！");
     }
@@ -320,15 +319,23 @@ public class FileInfoController {
         return R.success(one.getFileMd5());
     }
 
+    /***
+     * 删除文件（回收站）
+     * @param session
+     * @param fileIds
+     * @return
+     */
     @Transactional
     @PostMapping("/delFile")
-    public R<String> delFile(HttpSession session, @RequestParam("fileId") String fileId,
+    public R<String> delFile(HttpSession session,
                              @RequestParam("fileIds") String fileIds) {
         String userid = session.getAttribute("userid").toString();
         String[] split_id = fileIds.split(",");
         LambdaUpdateWrapper<FileInfo>lambdaUpdateWrapper=new LambdaUpdateWrapper<>();
         for (String id:split_id){
             lambdaUpdateWrapper.set(FileInfo::getDelFlag,1);
+            lambdaUpdateWrapper.set(FileInfo::getRecoveryTime,LocalDateTime.now());
+            lambdaUpdateWrapper.set(FileInfo::getLastUpdateTime,LocalDateTime.now());
             lambdaUpdateWrapper.eq(FileInfo::getFileId,id).eq(FileInfo::getUserId,userid);
             boolean update = fileInfoService.update(lambdaUpdateWrapper);
             if(!update){

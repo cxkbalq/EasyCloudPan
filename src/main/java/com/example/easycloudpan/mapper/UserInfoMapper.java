@@ -10,8 +10,6 @@ import org.apache.ibatis.annotations.Param;
  * 用户信息 Mapper 接口
  * </p>
  *
- * @author sw-code
- * @since 2023-05-16
  */
 @Mapper
 public interface UserInfoMapper extends BaseMapper<UserInfo> {

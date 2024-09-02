@@ -140,7 +140,8 @@ public class FileUtil {
                 fileInfo.setFilePath(s);
                 fileInfo.setFileName(fileUploadDTO.getFilename());
                 fileInfo.setFileSize(filesize);
-
+                fileInfo.setCreateTime(LocalDateTime.now());
+                fileInfo.setLastUpdateTime(LocalDateTime.now());
                 fileInfo.setDelFlag(0);
                 fileInfo.setFileId(s1);
                 fileInfo.setUserId(Long.valueOf(userid));

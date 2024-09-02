@@ -15,8 +15,7 @@ import java.util.List;
  * 文件信息表 Mapper 接口
  * </p>
  *
- * @author sw-code
- * @since 2023-05-19
+
  */
 @Mapper
 public interface FileInfoMapper extends BaseMapper<FileInfo> {

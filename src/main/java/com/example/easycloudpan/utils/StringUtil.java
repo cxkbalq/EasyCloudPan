@@ -11,7 +11,7 @@ import java.util.Random;
 @Slf4j
 public class StringUtil {
     //生成随机字符串
-    public String generateRandomString(int length) {
+    public static String generateRandomString(int length) {
         // 定义随机字符串的字符集
         String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         StringBuilder sb = new StringBuilder(length);

@@ -9,8 +9,6 @@ import org.apache.ibatis.annotations.Mapper;
  *  Mapper 接口
  * </p>
  *
- * @author sw-code
- * @since 2023-07-14
  */
 @Mapper
 public interface FileShareMapper extends BaseMapper<FileShare> {

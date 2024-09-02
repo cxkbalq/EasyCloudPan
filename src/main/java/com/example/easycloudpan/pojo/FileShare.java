@@ -24,7 +24,7 @@ public class FileShare implements Serializable {
     /**
      * 分享ID
      */
-    private String id;
+    private String shareId;
 
     /**
      * 文件ID
@@ -62,7 +62,7 @@ public class FileShare implements Serializable {
     private Integer downloadCount;
 
     /**
-     * 逻辑删除
+     * 逻辑删除  0正常
      */
     private Integer deleted;
 

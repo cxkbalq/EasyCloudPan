@@ -168,7 +168,7 @@ public class CommonController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = fileimagepath + userid + "\\" + "\\" + one.getFileId() + one.getFileName();
+            String path = fileimagepath + userid + "\\" + "\\" + one.getFilePath();
             response.setContentType("application/octet-stream");
             // 对文件名进行 URL 编码,解决前端无法识别空格导致下载格式异常的问题
             String encodedFileName = URLEncoder.encode(one.getFileName(), StandardCharsets.UTF_8.toString())
