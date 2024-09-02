@@ -9,6 +9,7 @@ public class MetaObjectHandlerConfig implements MetaObjectHandler {
     @Override
     public void insertFill(MetaObject metaObject) {
         this.setFieldValByName("createTime", LocalDateTime.now(), metaObject);
+        this.setFieldValByName("joinTime", LocalDateTime.now(), metaObject);
     }
 
     @Override

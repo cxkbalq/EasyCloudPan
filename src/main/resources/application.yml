@@ -88,6 +88,7 @@ easycloudpan:
   imgepath: ${path.lujin}
   temppath: ${path.temp}
   filepath: ${path.file}
+  rootuser: 1951196623@qq.com
 #ffmpeg
 ffmpeg:
   ffmpegFile: D:/tools/ffmpeg/bin/ffmpeg.exe #ffmpeg可执行文件路径

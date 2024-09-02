@@ -95,4 +95,8 @@ public class UserInfo implements Serializable {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
 
+
+    @TableField(fill = FieldFill.INSERT)
+    private LocalDateTime joinTime;
+
 }

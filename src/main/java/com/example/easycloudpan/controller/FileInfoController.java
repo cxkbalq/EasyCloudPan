@@ -40,16 +40,20 @@ public class FileInfoController {
     @Value("${easycloudpan.filepath}")
     private String filepath;
 
+
     //获取文件列表
     @PostMapping("/loadDataList")
-    public R<FileInfoDto> loadDataList(@RequestParam String category,
+    public R<FileInfoDto> loadDataList(HttpSession session,
+                                      @RequestParam String category,
                                        @RequestParam(required = false) String filePid,
                                        @RequestParam(required = false) String fileNameFuzzy,
                                        @RequestParam(required = false) String pageNo,
                                        @RequestParam(required = false) String pageSize) {
+
         //转化类型
         String[] typelist = {"all", "video", "music", "image", "doc", "others"};
         int type = Arrays.asList(typelist).indexOf(category);
+          String userid = session.getAttribute("userid").toString();
         //设置分页参数
 //        if (pageNo == "") {
 //            pageNo = "1";
@@ -60,7 +64,7 @@ public class FileInfoController {
         /*        Page<FileInfo> page=new Page<>(1,15);*/
         //构建查询条件
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(FileInfo::getDelFlag,0);
+        lambdaQueryWrapper.eq(FileInfo::getDelFlag,0).eq(FileInfo::getUserId,userid);
         if (filePid == null) {
             filePid = String.valueOf(0);
         }

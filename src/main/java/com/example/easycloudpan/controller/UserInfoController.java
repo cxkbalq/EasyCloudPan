@@ -8,12 +8,14 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.example.easycloudpan.common.R;
 import com.example.easycloudpan.pojo.EmailCode;
 import com.example.easycloudpan.pojo.UserInfo;
+import com.example.easycloudpan.pojo.vo.SessionWebUserVO;
 import com.example.easycloudpan.service.EmailCodeService;
 import com.example.easycloudpan.service.UserInfoServise;
 import com.example.easycloudpan.utils.CreateImageCodeUtils;
 import com.example.easycloudpan.utils.MailUtil;
 import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -53,6 +55,8 @@ public class UserInfoController {
     private UserInfoServise userInfoServise;
     @Value("${easycloudpan.filepath}")
     private String filepath;
+    @Value("${easycloudpan.rootuser}")
+    private String root;
 
     //生成图像验证码
     @GetMapping("/checkCode")
@@ -100,7 +104,7 @@ public class UserInfoController {
     //获取用户空间
     @PostMapping("/getUseSpace")
     public R<UserInfo> getUseSpace(HttpSession session) {
-        session.setAttribute("userid","1784458528288247809");
+       // session.setAttribute("userid", "1784458528288247809");
         String userid = session.getAttribute("userid").toString();
         UserInfo one = userInfoServise.getOne(new LambdaQueryWrapper<UserInfo>().eq(UserInfo::getUserId, userid));
         return R.success(one);
@@ -133,16 +137,21 @@ public class UserInfoController {
                 String s = DigestUtils.md5DigestAsHex(password.getBytes());
                 userInfo.setPassword(s);
                 userInfo.setNickName(nickName);
-                userInfo.setTotalSpace(5242880l);
+                userInfo.setTotalSpace(524288000l);
                 userInfo.setUseSpace(0l);
                 userInfo.setStatus(1);
                 String string = UUID.randomUUID().toString();
                 redisTemplate.delete(email);
                 //创建用户根目录
-                File file =new File(filepath+userInfo.getUserId());
-                file.mkdir();
-                userInfoServise.save(userInfo);
-                return R.success("账号注册成功");
+                File file = new File(filepath + userInfo.getUserId());
+                boolean mkdir = file.mkdir();
+                if (mkdir) {
+                    userInfoServise.save(userInfo);
+                    return R.success("账号注册成功");
+                } else {
+                    return R.error("用户空间初始化错误！，请联系管理员");
+                }
+
             } else {
                 return R.error("邮箱验证码错误或已过期！");
             }
@@ -154,9 +163,9 @@ public class UserInfoController {
 
     //用户登录
     @PostMapping("/login")
-    public R<UserInfo> login(HttpSession session, @RequestParam String email,
-                             @RequestParam String password,
-                             @RequestParam String checkCode) {
+    public R<SessionWebUserVO> login(HttpSession session, @RequestParam String email,
+                                     @RequestParam String password,
+                                     @RequestParam String checkCode) {
         //获取session里的验证码
         String sessionCode = String.valueOf(session.getAttribute("CODE")).toLowerCase();
         log.info(email);
@@ -170,8 +179,26 @@ public class UserInfoController {
                     return R.error("你的账号已被禁用");
                 } else {
                     session.setAttribute("userid", one.getUserId());
-                    redisTemplate.opsForValue().set(one.getUserId(),one,300,TimeUnit.MINUTES);
-                    return R.success(one);
+                    session.setAttribute("root", one.getEmail());
+                    redisTemplate.opsForValue().set(one.getUserId(), one, 300, TimeUnit.MINUTES);
+                    File file = new File(filepath + one.getUserId());
+                    File file1 = new File(filepath + one.getUserId()+"\\"+"croveImage");
+                    if (file.exists() && file.isDirectory()) {
+                        System.out.println("目录存在");
+                    } else {
+                        file.mkdir();
+                        file1.mkdir();
+                    }
+                    SessionWebUserVO sessionWebUserVO = new SessionWebUserVO();
+                    sessionWebUserVO.setUserId(one.getUserId());
+                    sessionWebUserVO.setNickname(one.getNickName());
+                    sessionWebUserVO.setAvatar(one.getQqAvatar());
+                    if (one.getEmail().equals(root)) {
+                        sessionWebUserVO.setIsAdmin(true);
+                    } else {
+                        sessionWebUserVO.setIsAdmin(false);
+                    }
+                    return R.success(sessionWebUserVO);
                 }
             } else {
                 return R.error("账号或密码错误");
@@ -183,6 +210,9 @@ public class UserInfoController {
 
     @PostMapping("/logout")
     public R<String> logout(HttpSession session) {
+        String userid = (String)session.getAttribute("userid");
+        session.removeAttribute("userid");
+       // redisTemplate.delete(userid);
         return R.success("请求成功！");
     }
 
