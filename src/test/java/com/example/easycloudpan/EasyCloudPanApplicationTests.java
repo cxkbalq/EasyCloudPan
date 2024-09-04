@@ -3,6 +3,7 @@ package com.example.easycloudpan;
 import com.example.easycloudpan.utils.MailUtil;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -22,6 +23,8 @@ class EasyCloudPanApplicationTests {
     private MailUtil sendEmailService;
     @Autowired
     private TemplateEngine templateEngine;
+    @Value("${easycloudpan.sys_diskspace}")
+    private String diskFreeSpace;
 
     @Test
     public void sendTemplateEmailTest() throws MessagingException {
@@ -53,5 +56,11 @@ class EasyCloudPanApplicationTests {
             System.out.println("没有足够的权限来删除文件");
             e.printStackTrace();
         }
+    }
+    @Test
+    public void getfreespace(){
+        File diskPartition = new File(diskFreeSpace+":"); // 根目录，或指定其他目录
+        long freeSpace = diskPartition.getUsableSpace(); // 获取剩余空间
+        System.out.println("Free space: " + freeSpace + " bytes");
     }
 }

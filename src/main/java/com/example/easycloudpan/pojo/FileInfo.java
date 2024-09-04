@@ -31,7 +31,7 @@ public class FileInfo implements Serializable {
     /**
      * 用户ID
      */
-    private Long userId;
+    private String userId;
 
     /**
      * 文件MD5值
@@ -105,6 +105,6 @@ public class FileInfo implements Serializable {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime lastUpdateTime;
-
-
+    //1封禁中，2为正常
+    private Integer fengJing;
 }

@@ -57,6 +57,12 @@ public class UserInfoController {
     private String filepath;
     @Value("${easycloudpan.rootuser}")
     private String root;
+    @Value("${easycloudpan.sys_diskspace}")
+    private String diskFreeSpace;
+    @Value("${easycloudpan.sys_space}")
+    private String sysSpace;
+    // 定义常量，1 MB = 1024 * 1024 字节
+    private static final long MEGABYTE_TO_BYTES = 1024L * 1024L;
 
     //生成图像验证码
     @GetMapping("/checkCode")
@@ -104,7 +110,7 @@ public class UserInfoController {
     //获取用户空间
     @PostMapping("/getUseSpace")
     public R<UserInfo> getUseSpace(HttpSession session) {
-       // session.setAttribute("userid", "1784458528288247809");
+        // session.setAttribute("userid", "1784458528288247809");
         String userid = session.getAttribute("userid").toString();
         UserInfo one = userInfoServise.getOne(new LambdaQueryWrapper<UserInfo>().eq(UserInfo::getUserId, userid));
         return R.success(one);
@@ -133,6 +139,16 @@ public class UserInfoController {
                 if (one != null) {
                     return R.error("账号已存在");
                 }
+                //默认空间为 5GB ,修改请登陆管理员账号自行修改！
+                long bytes = 5 * MEGABYTE_TO_BYTES;
+                //获取文件盘符所剩余空间
+                File diskPartition = new File(diskFreeSpace + ":"); // 根目录，或指定其他目录
+                long freeSpace = diskPartition.getUsableSpace(); // 获取剩余空间
+
+                if (bytes > freeSpace - Long.valueOf(sysSpace) * MEGABYTE_TO_BYTES) {
+                    return R.error("磁盘可用空间不足，请联系管理员扩充磁盘！");
+                }
+
                 //转换为md5格式
                 String s = DigestUtils.md5DigestAsHex(password.getBytes());
                 userInfo.setPassword(s);
@@ -140,6 +156,7 @@ public class UserInfoController {
                 userInfo.setTotalSpace(524288000l);
                 userInfo.setUseSpace(0l);
                 userInfo.setStatus(1);
+                userInfo.setJoinTime(LocalDateTime.now());
                 String string = UUID.randomUUID().toString();
                 redisTemplate.delete(email);
                 //创建用户根目录
@@ -182,7 +199,7 @@ public class UserInfoController {
                     session.setAttribute("root", one.getEmail());
                     redisTemplate.opsForValue().set(one.getUserId(), one, 300, TimeUnit.MINUTES);
                     File file = new File(filepath + one.getUserId());
-                    File file1 = new File(filepath + one.getUserId()+"\\"+"croveImage");
+                    File file1 = new File(filepath + one.getUserId() + "\\" + "croveImage");
                     if (file.exists() && file.isDirectory()) {
                         System.out.println("目录存在");
                     } else {
@@ -198,6 +215,10 @@ public class UserInfoController {
                     } else {
                         sessionWebUserVO.setIsAdmin(false);
                     }
+                    LambdaUpdateWrapper<UserInfo> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
+                    lambdaUpdateWrapper.set(UserInfo::getLastLoginTime, LocalDateTime.now());
+                    lambdaUpdateWrapper.eq(UserInfo::getUserId, one.getUserId());
+                    userInfoServise.update(lambdaUpdateWrapper);
                     return R.success(sessionWebUserVO);
                 }
             } else {
@@ -210,9 +231,9 @@ public class UserInfoController {
 
     @PostMapping("/logout")
     public R<String> logout(HttpSession session) {
-        String userid = (String)session.getAttribute("userid");
+        String userid = (String) session.getAttribute("userid");
         session.removeAttribute("userid");
-       // redisTemplate.delete(userid);
+        // redisTemplate.delete(userid);
         return R.success("请求成功！");
     }
 

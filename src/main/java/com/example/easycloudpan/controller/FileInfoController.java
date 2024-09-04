@@ -157,7 +157,7 @@ public class FileInfoController {
         }
         FileInfo fileInfo = new FileInfo();
         fileInfo.setFileName(fileName);
-        fileInfo.setUserId(Long.valueOf(userid));
+        fileInfo.setUserId(userid);
         fileInfo.setFilePid(filePid);
         fileInfo.setFileId(new StringUtil().generateRandomString(10));
         fileInfo.setStatus(2);

@@ -34,6 +34,8 @@ public class CommonController {
     private String fileimagepath;
     @Autowired
     private FileInfoService fileInfoService;
+    @Value("${easycloudpan.rootuser}")
+    private String root;
 
     /**
      * 上传图片
@@ -96,11 +98,51 @@ public class CommonController {
         }
     }
 
+    //管理员下载缩略图
+    //获得文件图片
+    @GetMapping("/file/getImage/{imageName}/{userid}")
+    public void getImageRoot(
+            @PathVariable("imageName") String imageName,
+            HttpServletResponse response,
+            @PathVariable("userid") String userid1, HttpSession session) throws IOException {
+        String userid = session.getAttribute("userid").toString();
+        String rootzh = session.getAttribute("root").toString();
+               //验证是否为管理用户
+        if (!rootzh.equals(root)) {
+            log.info("非法操作");
+            return;
+        }
+        try {
+            log.info(imageName);
+            //创建输入流，读取传入的图片
+            String[] split = imageName.split("\\.");
+            String path = fileimagepath + userid1 + "\\" + "croveImage" + "\\" + imageName;
+            FileInputStream fileInputStream = new FileInputStream(path);
+            //创建输出流，向浏览器发生读取的数据
+            ServletOutputStream outputStream = response.getOutputStream();
+            response.setContentType("image/png");
+            int len = 1;
+            //定义一次传入可以的最大字节
+            byte[] bytes = new byte[2048];
+            while ((len = fileInputStream.read(bytes)) != -1) {
+                outputStream.write(bytes, 0, len);
+                //刷新输出流，确保所有数据都被写入到输出目标中。
+                outputStream.flush();
+            }
+            fileInputStream.close();
+            outputStream.close();
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
     //下载缩略图
     //获得文件图片
     @GetMapping("/file/getImage/{imageName}")
     public void getImage(
-            @PathVariable("imageName") String imageName, HttpServletResponse response, HttpSession session) throws IOException {
+            @PathVariable("imageName") String imageName,
+            HttpServletResponse response, HttpSession session) throws IOException {
         String userid = session.getAttribute("userid").toString();
         try {
             log.info(imageName);
@@ -127,7 +169,15 @@ public class CommonController {
 
     }
 
-    //下载文件
+
+
+    /***
+     * 普通用户下载文件图片
+     * @param fileId
+     * @param response
+     * @param session
+     * @throws IOException
+     */
     @PostMapping("/file/getFile/{imageName}")
     public void getFileiamge(
             @PathVariable("imageName") String fileId, HttpServletResponse response, HttpSession session) throws IOException {
@@ -138,7 +188,7 @@ public class CommonController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = fileimagepath + userid + "\\" + "\\" + fileId + one.getFileName();
+            String path = fileimagepath + userid + "\\" + "\\" +  one.getFilePath();
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();
@@ -158,7 +208,14 @@ public class CommonController {
         }
     }
 
-    //下载文件
+
+    /***
+     * 普通用户下载文件
+     * @param filemd5
+     * @param response
+     * @param session
+     * @throws IOException
+     */
     @GetMapping("/file/download/{code}")
     public void getFile(@PathVariable("code") String filemd5, HttpServletResponse response, HttpSession session) throws IOException {
         String userid = session.getAttribute("userid").toString();
@@ -193,4 +250,91 @@ public class CommonController {
         }
     }
 
+
+        @GetMapping("/admin/download/{code}/{userid}")
+    public void getFileRoot(@PathVariable("code") String filemd5,
+                            @PathVariable("userid") String userid,
+                            HttpServletResponse response, HttpSession session) throws IOException {
+        String rootzh = session.getAttribute("root").toString();
+        //验证是否为管理用户
+        if (!rootzh.equals(root)) {
+            log.info("非法下载操作！");
+            return ;
+        }
+        try {
+            LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
+            lambdaQueryWrappe.eq(FileInfo::getFileMd5, filemd5);
+            FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
+            log.info(one.getFileName());
+            //创建输入流，读取传入的图片
+            String path = fileimagepath + userid + "\\" + "\\" + one.getFilePath();
+            response.setContentType("application/octet-stream");
+            // 对文件名进行 URL 编码,解决前端无法识别空格导致下载格式异常的问题
+            String encodedFileName = URLEncoder.encode(one.getFileName(), StandardCharsets.UTF_8.toString())
+                    .replace("+", "%20"); // 替换加号为空格
+            // 使用适当的编码格式来处理文件名
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encodedFileName);
+            FileInputStream fileInputStream = new FileInputStream(path);
+            //创建输出流，向浏览器发生读取的数据
+            ServletOutputStream outputStream = response.getOutputStream();
+            int len = 1;
+            //定义一次传入可以的最大字节
+            byte[] bytes = new byte[2048];
+            while ((len = fileInputStream.read(bytes)) != -1) {
+                outputStream.write(bytes, 0, len);
+                //刷新输出流，确保所有数据都被写入到输出目标中。
+                outputStream.flush();
+            }
+            fileInputStream.close();
+            outputStream.close();
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+
+    /***
+     * 普通用户下载文件图片
+     * @param fileId
+     * @param response
+     * @param session
+     * @throws IOException
+     */
+    @PostMapping("/admin/getFile/{userid}/{imageName}")
+    public void getFileiamgeRoot(@PathVariable("userid") String userid,
+                                   @PathVariable("imageName") String fileId,
+                                 HttpServletResponse response,
+                                 HttpSession session) throws IOException {
+        String rootzh = session.getAttribute("root").toString();
+        //验证是否为管理用户
+        if (!rootzh.equals(root)) {
+            log.info("非法下载操作！");
+            return ;
+        }
+        try {
+            LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
+            lambdaQueryWrappe.eq(FileInfo::getFileId, fileId);
+            FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
+            log.info(one.getFileName());
+            //创建输入流，读取传入的图片
+            String path = fileimagepath + userid + "\\" + "\\" + one.getFilePath();
+            FileInputStream fileInputStream = new FileInputStream(path);
+            //创建输出流，向浏览器发生读取的数据
+            ServletOutputStream outputStream = response.getOutputStream();
+//            response.setContentType("image/png");
+            int len = 1;
+            //定义一次传入可以的最大字节
+            byte[] bytes = new byte[2048];
+            while ((len = fileInputStream.read(bytes)) != -1) {
+                outputStream.write(bytes, 0, len);
+                //刷新输出流，确保所有数据都被写入到输出目标中。
+                outputStream.flush();
+            }
+            fileInputStream.close();
+            outputStream.close();
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

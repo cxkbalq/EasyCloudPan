@@ -64,10 +64,11 @@ public class FileUtil {
         fileInfo.setFilePid(one.getFileId());
         fileInfo.setCreateTime(LocalDateTime.now());
         fileInfo.setLastUpdateTime(LocalDateTime.now());
+        fileInfo.setFengJing(2);
         String s = new StringUtil().generateRandomString(10);
         fileInfo.setFileId(s);
         fileInfo.setFilePath(one.getFilePath());
-        fileInfo.setUserId(Long.valueOf(userid));
+        fileInfo.setUserId(userid);
         fileInfo.setFolderType(0);
         fileInfoService.save(fileInfo);
         //创建返回结果
@@ -138,13 +139,14 @@ public class FileUtil {
                 }
                 //设置文件路径
                 fileInfo.setFilePath(s);
+                fileInfo.setFengJing(2);
                 fileInfo.setFileName(fileUploadDTO.getFilename());
                 fileInfo.setFileSize(filesize);
                 fileInfo.setCreateTime(LocalDateTime.now());
                 fileInfo.setLastUpdateTime(LocalDateTime.now());
                 fileInfo.setDelFlag(0);
                 fileInfo.setFileId(s1);
-                fileInfo.setUserId(Long.valueOf(userid));
+                fileInfo.setUserId(userid);
                 fileInfo.setFolderType(0);
                 fileInfoService.save(fileInfo);
                 //更新用户的使用空间
