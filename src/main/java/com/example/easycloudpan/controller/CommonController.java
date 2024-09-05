@@ -105,18 +105,26 @@ public class CommonController {
             @PathVariable("imageName") String imageName,
             HttpServletResponse response,
             @PathVariable("userid") String userid1, HttpSession session) throws IOException {
-        String userid = session.getAttribute("userid").toString();
-        String rootzh = session.getAttribute("root").toString();
-               //验证是否为管理用户
-        if (!rootzh.equals(root)) {
-            log.info("非法操作");
-            return;
+
+        //因为我对缩略图的储存进行了每个账户的单独储存，所有对前端的接口进行了改动
+        //这里需要进行判断是否为分享图片
+        String[] split1 = userid1.split("\\.");
+        if (split1[1].equals("root")) {
+            String rootzh = session.getAttribute("root").toString();
+            //验证是否为管理用户
+            if (!rootzh.equals(root)) {
+                log.info("非法操作");
+                return;
+            }
         }
+
         try {
             log.info(imageName);
             //创建输入流，读取传入的图片
             String[] split = imageName.split("\\.");
-            String path = fileimagepath + userid1 + "\\" + "croveImage" + "\\" + imageName;
+
+            String  path = fileimagepath + split1[0] + "\\" + "croveImage" + "\\" + imageName;
+
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();
@@ -170,7 +178,6 @@ public class CommonController {
     }
 
 
-
     /***
      * 普通用户下载文件图片
      * @param fileId
@@ -188,7 +195,7 @@ public class CommonController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = fileimagepath + userid + "\\" + "\\" +  one.getFilePath();
+            String path = fileimagepath + userid + "\\" + "\\" + one.getFilePath();
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();
@@ -251,7 +258,7 @@ public class CommonController {
     }
 
 
-        @GetMapping("/admin/download/{code}/{userid}")
+    @GetMapping("/admin/download/{code}/{userid}")
     public void getFileRoot(@PathVariable("code") String filemd5,
                             @PathVariable("userid") String userid,
                             HttpServletResponse response, HttpSession session) throws IOException {
@@ -259,7 +266,7 @@ public class CommonController {
         //验证是否为管理用户
         if (!rootzh.equals(root)) {
             log.info("非法下载操作！");
-            return ;
+            return;
         }
         try {
             LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
@@ -293,7 +300,6 @@ public class CommonController {
     }
 
 
-
     /***
      * 普通用户下载文件图片
      * @param fileId
@@ -303,14 +309,14 @@ public class CommonController {
      */
     @PostMapping("/admin/getFile/{userid}/{imageName}")
     public void getFileiamgeRoot(@PathVariable("userid") String userid,
-                                   @PathVariable("imageName") String fileId,
+                                 @PathVariable("imageName") String fileId,
                                  HttpServletResponse response,
                                  HttpSession session) throws IOException {
         String rootzh = session.getAttribute("root").toString();
         //验证是否为管理用户
         if (!rootzh.equals(root)) {
             log.info("非法下载操作！");
-            return ;
+            return;
         }
         try {
             LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
@@ -337,4 +343,8 @@ public class CommonController {
             throw new RuntimeException(e);
         }
     }
+
+    //分享是视频预览
+
+
 }

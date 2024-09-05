@@ -15,12 +15,15 @@ public class FileShareVo implements Serializable {
     private LocalDateTime expireTime;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime shareTime;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime lastUpdateTime;
     private String code;
     private int showCount;
     private String fileName;
-    private int folderType;
-    private int fileCategory;
-    private int fileType;
+    private String folderType;
+    private String fileCategory;
+    private String fileType;
     private String fileCover;
+    private Long fileSize;
 
 }

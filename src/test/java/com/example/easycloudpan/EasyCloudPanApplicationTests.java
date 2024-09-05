@@ -63,4 +63,14 @@ class EasyCloudPanApplicationTests {
         long freeSpace = diskPartition.getUsableSpace(); // 获取剩余空间
         System.out.println("Free space: " + freeSpace + " bytes");
     }
+
+
+        @Test
+    public void getfr1eespace(){
+        String tse="1784458528288247809.fengxiang";
+            String[] split = tse.split("\\.");
+            for (String s:split){
+                System.out.println(s);
+            }
+        }
 }

@@ -34,6 +34,13 @@ public class FileShareController {
     private FileInfoService fileInfoService;
 
     //@ModelAttribute这个注解可以接收非json类型的表单数据
+
+    /***
+     * 分享文件
+     * @param session
+     * @param fileShareVo
+     * @return
+     */
     @PostMapping("/shareFile")
     public R<FileShare> shareFile(HttpSession session,
                                   @ModelAttribute FileShareDto2 fileShareVo) {
@@ -132,6 +139,9 @@ public class FileShareController {
             for (FileInfo one : list1) {
                 BeanUtils.copyProperties(fileShare, fileShareVo);
                 BeanUtils.copyProperties(one, fileShareVo);
+                fileShareVo.setFileCategory(String.valueOf(one.getFileCategory()));
+                fileShareVo.setFileType(String.valueOf(one.getFileType()));
+                fileShareVo.setFolderType(String.valueOf(one.getFolderType()));
                 fileShareVo.setFileName(one.getFileName());
                 fileShareVo.setShareTime(fileShare.getCreateTime());
                 fileShareVo.setFileCover(one.getFileCover());
@@ -143,6 +153,12 @@ public class FileShareController {
         return R.success(FileShareDto);
     }
 
+    /***
+     * 取消文件分享
+     * @param session
+     * @param shareIds
+     * @return
+     */
     @PostMapping("/cancelShare")
     public R<String> cancelShare(HttpSession session, @RequestParam("shareIds") String shareIds) {
         String userid = session.getAttribute("userid").toString();
@@ -155,5 +171,7 @@ public class FileShareController {
         }
         return R.success("更新成功！");
     }
+
+
 
 }
