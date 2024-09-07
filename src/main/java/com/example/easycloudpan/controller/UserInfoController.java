@@ -12,6 +12,7 @@ import com.example.easycloudpan.pojo.vo.SessionWebUserVO;
 import com.example.easycloudpan.service.EmailCodeService;
 import com.example.easycloudpan.service.UserInfoServise;
 import com.example.easycloudpan.utils.CreateImageCodeUtils;
+import com.example.easycloudpan.utils.JwtUtils;
 import com.example.easycloudpan.utils.MailUtil;
 import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,8 @@ import javax.swing.text.StyledEditorKit;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -131,7 +134,7 @@ public class UserInfoController {
                 UserInfo userInfo = new UserInfo();
                 userInfo.setCreateTime(LocalDateTime.now());
                 userInfo.setUpdateTime(LocalDateTime.now());
-                userInfo.setEmail(emailCode);
+                userInfo.setEmail(email);
                 //检测这账号是否存在
                 LambdaQueryWrapper<UserInfo> queryWrapper = new LambdaQueryWrapper<>();
                 queryWrapper.eq(UserInfo::getEmail, email);
@@ -159,15 +162,17 @@ public class UserInfoController {
                 userInfo.setJoinTime(LocalDateTime.now());
                 String string = UUID.randomUUID().toString();
                 redisTemplate.delete(email);
+                userInfoServise.save(userInfo);
+                return R.success("账号注册成功");
                 //创建用户根目录
-                File file = new File(filepath + userInfo.getUserId());
-                boolean mkdir = file.mkdir();
-                if (mkdir) {
-                    userInfoServise.save(userInfo);
-                    return R.success("账号注册成功");
-                } else {
-                    return R.error("用户空间初始化错误！，请联系管理员");
-                }
+//                File file = new File(filepath + userInfo.getUserId());
+//                boolean mkdir = file.mkdir();
+//                if (mkdir) {
+//                    userInfoServise.save(userInfo);
+//                    return R.success("账号注册成功");
+//                } else {
+//                    return R.error("用户空间初始化错误！，请联系管理员");
+//                }
 
             } else {
                 return R.error("邮箱验证码错误或已过期！");
@@ -198,18 +203,28 @@ public class UserInfoController {
                     session.setAttribute("userid", one.getUserId());
                     session.setAttribute("root", one.getEmail());
                     redisTemplate.opsForValue().set(one.getUserId(), one, 300, TimeUnit.MINUTES);
-                    File file = new File(filepath + one.getUserId());
-                    File file1 = new File(filepath + one.getUserId() + "\\" + "croveImage");
-                    if (file.exists() && file.isDirectory()) {
+                    //  File file = new File(filepath + one.getUserId());
+                    File file1 = new File(filepath + "\\" + "croveImage");
+                    if (file1.exists() && file1.isDirectory()) {
                         System.out.println("目录存在");
                     } else {
-                        file.mkdir();
+                        //  file.mkdir();
                         file1.mkdir();
                     }
+
+                    //创建jwt令牌，并返回给前端，为了减少代码量，将jwt储存在msg里了
+                    Map<String, Object> claims = new HashMap<>();
+                    claims.put("id", one.getUserId());
+                    claims.put("email", one.getEmail());
+                    JwtUtils jwtUtils = new JwtUtils();
+                    String jwt = jwtUtils.generateJwt(claims);
+                    log.info("用户端jwt为：{}", jwt);
+
                     SessionWebUserVO sessionWebUserVO = new SessionWebUserVO();
                     sessionWebUserVO.setUserId(one.getUserId());
                     sessionWebUserVO.setNickname(one.getNickName());
                     sessionWebUserVO.setAvatar(one.getQqAvatar());
+                    sessionWebUserVO.setJwt(jwt);
                     if (one.getEmail().equals(root)) {
                         sessionWebUserVO.setIsAdmin(true);
                     } else {

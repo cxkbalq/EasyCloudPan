@@ -54,11 +54,8 @@ public class FileInfoController {
         String[] typelist = {"all", "video", "music", "image", "doc", "others"};
         int type = Arrays.asList(typelist).indexOf(category);
           String userid = session.getAttribute("userid").toString();
-        //设置分页参数
-//        if (pageNo == "") {
-//            pageNo = "1";
-//            pageSize = "15";
-//        }
+
+
 
         Page<FileInfo> page = new Page<>(Long.valueOf(pageNo), Long.valueOf(pageSize));
         /*        Page<FileInfo> page=new Page<>(1,15);*/
@@ -115,19 +112,25 @@ public class FileInfoController {
      *
      * @param response
      * @param fileId
-     * @param session
      */
 
     @GetMapping("ts/getVideoInfo/{fileId}")
-    public void getVideo(HttpServletResponse response, @PathVariable("fileId") String fileId, HttpSession session) {
+    public void getVideo(HttpServletResponse response, @PathVariable("fileId") String fileId) {
+
+        //解决保存文件以及秒传文件，出现请求错误id的情况，后期加上redis，提高响应速度
+        LambdaQueryWrapper<FileInfo> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(FileInfo::getFileId,fileId.substring(0,10));
+        FileInfo one = fileInfoService.getOne(lambdaQueryWrapper);
+        //文件实际所处的路径
+        String substring = one.getFilePath().substring(0, 10);
         //构建返回路径
-        String userid = session.getAttribute("userid").toString();
         String path;
         if (fileId.endsWith(".ts")) {
             String[] split = fileId.split("_");
-            path = filepath + userid + "\\" + split[0] + "\\" + fileId;
+            path = filepath + "\\" + substring + "\\" + substring+"_"+split[1];
+            log.info(path);
         } else {
-            path = filepath + userid + "\\" + fileId + "\\" + fileId + ".m3u8";
+            path = filepath + "\\" + substring + "\\" + substring + ".m3u8";
         }
         fileUtil.readFile(response, path);
     }
@@ -163,6 +166,7 @@ public class FileInfoController {
         fileInfo.setStatus(2);
         fileInfo.setFolderType(1);
         fileInfo.setDelFlag(0);
+        fileInfo.setFengJing(2);
         fileInfo.setCreateTime(LocalDateTime.now());
         fileInfo.setLastUpdateTime(LocalDateTime.now());
         fileInfoService.save(fileInfo);
@@ -250,6 +254,7 @@ public class FileInfoController {
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(FileInfo::getFolderType, 1);
         lambdaQueryWrapper.eq(FileInfo::getUserId, userid);
+        lambdaQueryWrapper.eq(FileInfo::getDelFlag,0).eq(FileInfo::getFengJing,2);
         List<FileInfo> list1 = new ArrayList<>();
         //创建默认目录
         FileInfo fileInfo = new FileInfo();
@@ -320,7 +325,7 @@ public class FileInfoController {
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(FileInfo::getUserId, userid).eq(FileInfo::getFileId, fileid);
         FileInfo one = fileInfoService.getOne(lambdaQueryWrapper);
-        return R.success(one.getFileMd5());
+        return R.success(one.getFileMd5()+"_"+one.getFileId());
     }
 
     /***

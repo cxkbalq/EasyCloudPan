@@ -24,6 +24,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -127,7 +128,7 @@ public class CommonController {
             //创建输入流，读取传入的图片
             String[] split = imageName.split("\\.");
 
-            String  path = fileimagepath + split1[0] + "\\" + "croveImage" + "\\" + imageName;
+            String  path = fileimagepath + "\\" + "croveImage" + "\\" + imageName;
 
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
@@ -154,22 +155,12 @@ public class CommonController {
     @GetMapping("/file/getImage/{imageName}")
     public void getImage(
             @PathVariable("imageName") String imageName,
-            HttpServletResponse response, HttpSession session) throws IOException {
-
-        String userid = session.getAttribute("userid").toString();
-        //判断是否是保存过来的文件
-        String[] split = imageName.split("\\.");
-        if(split.length>2 && split[2].equals("save")){
-            LambdaQueryWrapper<SaveInfo> lambdaQueryWrapper=new LambdaQueryWrapper<>();
-            lambdaQueryWrapper.eq(SaveInfo::getYuanFileId,split[0]);
-            SaveInfo one = saveInfoService.getOne(lambdaQueryWrapper);
-            userid=one.getYuanUserId();
-        }
+            HttpServletResponse response) throws IOException {
 
         try {
             log.info(imageName);
             //创建输入流，读取传入的图片
-            String path = fileimagepath  + "\\" + "croveImage" + "\\" + split[0]+"."+split[1];
+            String path = fileimagepath  + "\\" + "croveImage" + "\\" + imageName;
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();
@@ -200,7 +191,6 @@ public class CommonController {
      */
     @PostMapping("/file/getFile/{imageName}")
     public void getFileiamge(@PathVariable("imageName") String fileId, HttpServletResponse response, HttpSession session) throws IOException {
-        String userid = session.getAttribute("userid").toString();
         try {
             LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
             lambdaQueryWrappe.eq(FileInfo::getFileId, fileId);
@@ -237,12 +227,14 @@ public class CommonController {
      */
     @GetMapping("/file/download/{code}")
     public void getFile(@PathVariable("code") String filemd5, HttpServletResponse response, HttpSession session) throws IOException {
-        String userid = session.getAttribute("userid").toString();
+
         try {
+            //对路劲进行分割
+            String[] split = filemd5.split("_");
+
             LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
-            lambdaQueryWrappe.eq(FileInfo::getFileMd5, filemd5);
+            lambdaQueryWrappe.eq(FileInfo::getFileMd5, split[0]).eq(FileInfo::getFileId,split[1]);
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
-            log.info(one.getFileName());
             //创建输入流，读取传入的图片
             String path = fileimagepath + "\\" + "\\" + one.getFilePath();
             response.setContentType("application/octet-stream");

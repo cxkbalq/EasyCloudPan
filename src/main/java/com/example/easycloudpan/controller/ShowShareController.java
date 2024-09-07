@@ -29,12 +29,18 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.ServletOutputStream;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -293,17 +299,21 @@ public class ShowShareController {
                          @PathVariable("fileId") String fileId,
                          @PathVariable("fileShare") String fileShare,
                          HttpSession session) {
-        LambdaQueryWrapper<FileShare> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(FileShare::getShareId, fileShare);
-        FileShare one = fileShareService.getOne(lambdaQueryWrapper);
-        String userid = one.getUserId();
 
+        //解决保存文件以及秒传文件，出现请求错误id的情况，后期加上redis，提高响应速度
+        LambdaQueryWrapper<FileInfo> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(FileInfo::getFileId,fileId.substring(0,10));
+        FileInfo one = fileInfoService.getOne(lambdaQueryWrapper);
+        //文件实际所处的路径
+        String substring = one.getFilePath().substring(0, 10);
+        //构建返回路径
         String path;
         if (fileId.endsWith(".ts")) {
             String[] split = fileId.split("_");
-            path = filepath + userid + "\\" + split[0] + "\\" + fileId;
+            path = filepath + "\\" + substring + "\\" + substring+"_"+split[1];
+            log.info(path);
         } else {
-            path = filepath + userid + "\\" + fileId + "\\" + fileId + ".m3u8";
+            path = filepath + "\\" + substring + "\\" + substring + ".m3u8";
         }
         fileUtil.readFile(response, path);
     }
@@ -369,6 +379,94 @@ public class ShowShareController {
         }
 
         return R.success("保存成功");
+    }
+
+    /***
+     * 创建下载连接
+     * @param session
+     * @param fileid
+     * @return
+     */
+        @PostMapping("/createDownloadUrl/{www}/{id}")
+    public R<String> createDownloadUrl(HttpSession session, @PathVariable("id") String fileid) {
+            //解决保存文件以及秒传文件，出现请求错误id的情况
+        LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(FileInfo::getFileId, fileid);
+        FileInfo one = fileInfoService.getOne(lambdaQueryWrapper);
+        String substring = one.getFilePath().substring(0, 10);
+        return R.success(one.getFileMd5()+"_"+substring);
+    }
+
+       @GetMapping("/download/{code}")
+    public void getFile(@PathVariable("code") String filemd5, HttpServletResponse response, HttpSession session) throws IOException {
+
+        try {
+            //对路劲进行分割
+            String[] split = filemd5.split("_");
+
+            LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
+            lambdaQueryWrappe.eq(FileInfo::getFileMd5, split[0]).eq(FileInfo::getFileId,split[1]);
+            FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
+            //创建输入流，读取传入的图片
+            String path = filepath + "\\" + "\\" + one.getFilePath();
+            response.setContentType("application/octet-stream");
+            // 对文件名进行 URL 编码,解决前端无法识别空格导致下载格式异常的问题
+            String encodedFileName = URLEncoder.encode(one.getFileName(), StandardCharsets.UTF_8.toString())
+                    .replace("+", "%20"); // 替换加号为空格
+            // 使用适当的编码格式来处理文件名
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encodedFileName);
+            FileInputStream fileInputStream = new FileInputStream(path);
+            //创建输出流，向浏览器发生读取的数据
+            ServletOutputStream outputStream = response.getOutputStream();
+            int len = 1;
+            //定义一次传入可以的最大字节
+            byte[] bytes = new byte[2048];
+            while ((len = fileInputStream.read(bytes)) != -1) {
+                outputStream.write(bytes, 0, len);
+                //刷新输出流，确保所有数据都被写入到输出目标中。
+                outputStream.flush();
+            }
+            fileInputStream.close();
+            outputStream.close();
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    /***
+     * 加载文件和图片
+     * @param fileId
+     * @param response
+     * @param session
+     * @throws IOException
+     */
+        @PostMapping("/getFile/{www}/{imageName}")
+    public void getFileiamge(@PathVariable("imageName") String fileId, HttpServletResponse response, HttpSession session) throws IOException {
+        try {
+            LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
+            lambdaQueryWrappe.eq(FileInfo::getFileId, fileId);
+            FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
+            log.info(one.getFileName());
+            //创建输入流，读取传入的图片
+            String path = filepath + "\\" + "\\" + one.getFilePath();
+            FileInputStream fileInputStream = new FileInputStream(path);
+            //创建输出流，向浏览器发生读取的数据
+            ServletOutputStream outputStream = response.getOutputStream();
+//            response.setContentType("image/png");
+            int len = 1;
+            //定义一次传入可以的最大字节
+            byte[] bytes = new byte[2048];
+            while ((len = fileInputStream.read(bytes)) != -1) {
+                outputStream.write(bytes, 0, len);
+                //刷新输出流，确保所有数据都被写入到输出目标中。
+                outputStream.flush();
+            }
+            fileInputStream.close();
+            outputStream.close();
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Transactional

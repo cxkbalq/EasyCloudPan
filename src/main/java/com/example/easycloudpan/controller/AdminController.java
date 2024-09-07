@@ -287,9 +287,9 @@ public class AdminController {
         String path;
         if (fileId.endsWith(".ts")) {
             String[] split = fileId.split("_");
-            path = filepath + userid + "\\" + split[0] + "\\" + fileId;
+            path = filepath + "\\" + split[0] + "\\" + fileId;
         } else {
-            path = filepath + userid + "\\" + fileId + "\\" + fileId + ".m3u8";
+            path = filepath +"\\" + fileId + "\\" + fileId + ".m3u8";
         }
         fileUtil.readFile(response, path);
     }

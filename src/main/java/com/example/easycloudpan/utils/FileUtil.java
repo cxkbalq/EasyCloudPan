@@ -1,5 +1,6 @@
 package com.example.easycloudpan.utils;
 
+import com.alipay.api.domain.LendingDataList;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.example.easycloudpan.pojo.FileInfo;
@@ -46,9 +47,9 @@ public class FileUtil {
 
     //秒传判断
     public Boolean isExist(String md5) {
-        FileInfo one = fileInfoService.getOne(new LambdaQueryWrapper<FileInfo>().eq(FileInfo::getFileMd5, md5));
+        List<FileInfo> one = fileInfoService.list(new LambdaQueryWrapper<FileInfo>().eq(FileInfo::getFileMd5, md5));
         //如果存在这个文件
-        if (one != null) {
+        if (one.size()>=1) {
             return true;
         } else {
             return false;
@@ -56,20 +57,23 @@ public class FileUtil {
     }
 
     //秒传
-    public UploadResultVO miaoChan(FileInfo one, FileUploadDTO fileUploadDTO, HttpSession session) {
+    public UploadResultVO miaoChan(FileUploadDTO fileUploadDTO, HttpSession session) {
+        List<FileInfo> one = fileInfoService.list(new LambdaQueryWrapper<FileInfo>().eq(FileInfo::getFileMd5, fileUploadDTO.getFileMd5()));
         String userid = session.getAttribute("userid").toString();
         //创建数据库更新结果
         FileInfo fileInfo = new FileInfo();
-        BeanUtils.copyProperties(fileInfo, one);
-        fileInfo.setFilePid(one.getFileId());
+        BeanUtils.copyProperties(one.get(0), fileInfo);
+        fileInfo.setFilePid(fileUploadDTO.getFilePid());
         fileInfo.setCreateTime(LocalDateTime.now());
         fileInfo.setLastUpdateTime(LocalDateTime.now());
         fileInfo.setFengJing(2);
         String s = new StringUtil().generateRandomString(10);
         fileInfo.setFileId(s);
-        fileInfo.setFilePath(one.getFilePath());
+        fileInfo.setFilePath(one.get(0).getFilePath());
         fileInfo.setUserId(userid);
         fileInfo.setFolderType(0);
+        fileInfo.setDelFlag(0);
+        fileInfo.setFileName(fileUploadDTO.getFilename());
         fileInfoService.save(fileInfo);
         //创建返回结果
         UploadResultVO uploadResultVO = new UploadResultVO();
@@ -189,17 +193,16 @@ public class FileUtil {
 
     //文件切片，封面，图片缩略图获取
     public Boolean videoImageChuLi(Integer type, String filename, HttpSession session, String fileId) throws Exception {
-        String userid = (String) session.getAttribute("userid");
-        String outputFile = filepath + userid + "\\" + filename;
+        String outputFile = filepath  + "\\" + filename;
         //进行视频处理
         if (type == 1) {
         //    D:\Downloads\file\1784458528288247809\RYzvdHGlUN7zwoIgSKJZinput.mp4
-            videoImageUtil.cutFile4Video(fileId, outputFile, filepath + userid);
-            videoImageUtil.createCover4Video(new File(outputFile), 300, new File(filepath + userid + "\\" + "croveImage" + "\\" + fileId + ".png"));
+            videoImageUtil.cutFile4Video(fileId, outputFile, filepath);
+            videoImageUtil.createCover4Video(new File(outputFile), 300, new File(filepath + "\\" + "croveImage" + "\\" + fileId + ".png"));
         }
         //进行图片处理
         if (type == 3) {
-            videoImageUtil.compressImage(new File(outputFile), 300, new File(filepath + userid + "\\" + "croveImage"+"\\"+ fileId + ".png"), false,fileId);
+            videoImageUtil.compressImage(new File(outputFile), 300, new File(filepath +"\\" + "croveImage"+"\\"+ fileId + ".png"), false,fileId);
         }
         return true;
     }
@@ -209,8 +212,7 @@ public class FileUtil {
         //秒传
         if (isExist(fileUploadDTO.getFileMd5())) {
             //判断数据库里是否存在这个文件
-            FileInfo one = fileInfoService.getOne(new LambdaQueryWrapper<FileInfo>().eq(FileInfo::getFileMd5, fileUploadDTO.getFileMd5()));
-            UploadResultVO uploadResultVO = miaoChan(one, fileUploadDTO, session);
+            UploadResultVO uploadResultVO = miaoChan(fileUploadDTO, session);
             return uploadResultVO;
         }
         //分片上传
@@ -225,13 +227,8 @@ public class FileUtil {
     public Long heBing(FileUploadDTO fileUploadDTO, HttpSession session, String filename) throws IOException {
         /*        String filename=filename1.trim();*/
         log.info("开始文件合并");
-        String userid = (String) session.getAttribute("userid");
-        String outputFile = filepath + userid + "\\" + filename;
-//        if(outputFile.length()>100){
-//            log.error("文件名长度过大");
-//            log.error("文件合并错误！");
-//            return 0l;
-//        }
+        String outputFile = filepath +  "\\" + filename;
+
         try (RandomAccessFile outputRaf = new RandomAccessFile(outputFile, "rw");
              FileChannel outputChannel = outputRaf.getChannel()) {
             long position = 0;

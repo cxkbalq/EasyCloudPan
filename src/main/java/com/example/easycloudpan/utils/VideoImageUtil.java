@@ -121,11 +121,13 @@ public class VideoImageUtil {
 
         //生成index.ts
         cmd = String.format(CMD_TRANSFER_2TS, "\"" + videoFilePath + "\"", tsPath);
-        ProcessUtils.executeCommand(cmd, false);
+        log.info(cmd);
+        ProcessUtils.executeCommand(cmd, true);
 
         //生成索引文件.m3u8 和切片.ts
         cmd = String.format(CMD_CUT_TS, "\"" + tsPath + "\"", "\"" + tsFolder.getPath() + "/" + fileId + ".m3u8" + "\"", tsFolder.getPath(), fileId);
-        ProcessUtils.executeCommand(cmd, false);
+        log.info(cmd);
+        ProcessUtils.executeCommand(cmd, true);
 
         //删除index.ts
         new File(tsPath).delete();

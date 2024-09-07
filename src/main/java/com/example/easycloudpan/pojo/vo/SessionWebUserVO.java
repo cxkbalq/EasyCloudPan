@@ -10,4 +10,5 @@ public class SessionWebUserVO implements Serializable {
     private String userId;
     private Boolean isAdmin;
     private String avatar;
+    private String jwt;
 }
