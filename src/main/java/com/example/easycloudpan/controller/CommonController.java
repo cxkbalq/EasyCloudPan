@@ -4,7 +4,9 @@ import com.aliyuncs.utils.MapUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.easycloudpan.common.R;
 import com.example.easycloudpan.pojo.FileInfo;
+import com.example.easycloudpan.pojo.SaveInfo;
 import com.example.easycloudpan.service.FileInfoService;
+import com.example.easycloudpan.service.SaveInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +36,8 @@ public class CommonController {
     private String fileimagepath;
     @Autowired
     private FileInfoService fileInfoService;
+    @Autowired
+    private SaveInfoService saveInfoService;
     @Value("${easycloudpan.rootuser}")
     private String root;
 
@@ -151,12 +155,21 @@ public class CommonController {
     public void getImage(
             @PathVariable("imageName") String imageName,
             HttpServletResponse response, HttpSession session) throws IOException {
+
         String userid = session.getAttribute("userid").toString();
+        //判断是否是保存过来的文件
+        String[] split = imageName.split("\\.");
+        if(split.length>2 && split[2].equals("save")){
+            LambdaQueryWrapper<SaveInfo> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+            lambdaQueryWrapper.eq(SaveInfo::getYuanFileId,split[0]);
+            SaveInfo one = saveInfoService.getOne(lambdaQueryWrapper);
+            userid=one.getYuanUserId();
+        }
+
         try {
             log.info(imageName);
             //创建输入流，读取传入的图片
-            String[] split = imageName.split("\\.");
-            String path = fileimagepath + userid + "\\" + "croveImage" + "\\" + imageName;
+            String path = fileimagepath  + "\\" + "croveImage" + "\\" + split[0]+"."+split[1];
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();
@@ -186,8 +199,7 @@ public class CommonController {
      * @throws IOException
      */
     @PostMapping("/file/getFile/{imageName}")
-    public void getFileiamge(
-            @PathVariable("imageName") String fileId, HttpServletResponse response, HttpSession session) throws IOException {
+    public void getFileiamge(@PathVariable("imageName") String fileId, HttpServletResponse response, HttpSession session) throws IOException {
         String userid = session.getAttribute("userid").toString();
         try {
             LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
@@ -195,7 +207,7 @@ public class CommonController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = fileimagepath + userid + "\\" + "\\" + one.getFilePath();
+            String path = fileimagepath + "\\" + "\\" + one.getFilePath();
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();
@@ -232,7 +244,7 @@ public class CommonController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = fileimagepath + userid + "\\" + "\\" + one.getFilePath();
+            String path = fileimagepath + "\\" + "\\" + one.getFilePath();
             response.setContentType("application/octet-stream");
             // 对文件名进行 URL 编码,解决前端无法识别空格导致下载格式异常的问题
             String encodedFileName = URLEncoder.encode(one.getFileName(), StandardCharsets.UTF_8.toString())
@@ -257,7 +269,14 @@ public class CommonController {
         }
     }
 
-
+    /***
+     * 管理员创建下载下载连接
+     * @param filemd5
+     * @param userid
+     * @param response
+     * @param session
+     * @throws IOException
+     */
     @GetMapping("/admin/download/{code}/{userid}")
     public void getFileRoot(@PathVariable("code") String filemd5,
                             @PathVariable("userid") String userid,
@@ -274,7 +293,7 @@ public class CommonController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = fileimagepath + userid + "\\" + "\\" + one.getFilePath();
+            String path = fileimagepath  + "\\" + "\\" + one.getFilePath();
             response.setContentType("application/octet-stream");
             // 对文件名进行 URL 编码,解决前端无法识别空格导致下载格式异常的问题
             String encodedFileName = URLEncoder.encode(one.getFileName(), StandardCharsets.UTF_8.toString())
@@ -324,7 +343,7 @@ public class CommonController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = fileimagepath + userid + "\\" + "\\" + one.getFilePath();
+            String path = fileimagepath  + "\\" + "\\" + one.getFilePath();
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();

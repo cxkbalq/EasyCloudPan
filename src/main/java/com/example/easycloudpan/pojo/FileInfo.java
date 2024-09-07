@@ -107,4 +107,6 @@ public class FileInfo implements Serializable {
     private LocalDateTime lastUpdateTime;
     //1封禁中，2为正常
     private Integer fengJing;
+    //是否是通过保存过来的
+    private Boolean saveSf;
 }

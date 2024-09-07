@@ -160,8 +160,17 @@ public class AdminController {
         return R.error("更新失败");
     }
 
-    @PostMapping("/loadFileList")
+    /***
+     * 管理端加载所有文件列表
+     * @param session
+     * @param fileNameFuzzy
+     * @param pageNo
+     * @param pageSize
+     * @param filePid
+     * @return
+     */
 
+    @PostMapping("/loadFileList")
     public R<FileInfoDto> loadFileList(HttpSession session,
                                        @RequestParam(value = "fileNameFuzzy", required = false) String fileNameFuzzy,
                                        @RequestParam("pageNo") String pageNo,
@@ -257,7 +266,13 @@ public class AdminController {
         return R.success(one.getFileMd5());
     }
 
-
+    /***
+     * 管理端视频播放
+     * @param response
+     * @param fileId
+     * @param userid
+     * @param session
+     */
         @GetMapping("ts/getVideoInfo/{userId}/{fileId}")
     public void getVideo(HttpServletResponse response,
                          @PathVariable("fileId") String fileId,

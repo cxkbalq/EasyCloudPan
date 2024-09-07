@@ -1,19 +1,23 @@
 package com.example.easycloudpan.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.easycloudpan.common.R;
 import com.example.easycloudpan.pojo.FileInfo;
 import com.example.easycloudpan.pojo.FileShare;
+import com.example.easycloudpan.pojo.SaveInfo;
 import com.example.easycloudpan.pojo.UserInfo;
 import com.example.easycloudpan.pojo.dto.FileShareDto;
 import com.example.easycloudpan.pojo.vo.FileShareVo;
 import com.example.easycloudpan.pojo.vo.ShowShareVo;
 import com.example.easycloudpan.service.FileInfoService;
 import com.example.easycloudpan.service.FileShareService;
+import com.example.easycloudpan.service.SaveInfoService;
 import com.example.easycloudpan.service.UserInfoServise;
 import com.example.easycloudpan.utils.CookieUtil;
 import com.example.easycloudpan.utils.FileUtil;
+import com.example.easycloudpan.utils.StringUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.Cookie;
@@ -30,6 +35,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,11 +50,20 @@ public class ShowShareController {
     @Autowired
     private UserInfoServise userInfoServise;
     @Autowired
+    private SaveInfoService saveInfoService;
+    @Autowired
     private CookieUtil cookieUtil;
     @Value("${easycloudpan.filepath}")
     private String filepath;
     @Autowired
     private FileUtil fileUtil;
+
+    /***
+     *
+     * @param session
+     * @param shareId
+     * @return
+     */
 
     @PostMapping("/{shareId}")
     public R<FileShare> shareR(HttpSession session, @PathVariable("shareId") String shareId) {
@@ -57,6 +72,46 @@ public class ShowShareController {
         FileShare one = fileShareService.getOne(lambdaQueryWrapper);
         return R.success(one);
     }
+
+    /***
+     *
+     * @param session
+     * @param
+     * @param shareId
+     * @return
+     */
+    @PostMapping("/getFolderInfo")
+    public R<List<FileInfo>> getFolderInfo(HttpSession session,
+                                           @RequestParam("path") String filepath,
+                                           @RequestParam("shareId") String shareId) {
+        LambdaQueryWrapper<FileShare> lambdaQueryWrapper1 = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper1.eq(FileShare::getShareId, shareId);
+        FileShare one = fileShareService.getOne(lambdaQueryWrapper1);
+
+
+        //分割字符串
+        String[] path = filepath.split("/");
+        //保存结果
+        List<FileInfo> results = new ArrayList<>();
+        // 2. 遍历每个分割的部分并执行查询
+        for (String part : path) {
+            LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+            lambdaQueryWrapper.eq(FileInfo::getFileId, part);
+            lambdaQueryWrapper.eq(FileInfo::getUserId, one.getUserId());
+            FileInfo one1 = fileInfoService.getOne(lambdaQueryWrapper);
+            results.add(one1);
+        }
+        return R.success(results);
+
+    }
+
+
+    /***
+     *
+     * @param session
+     * @param shareId
+     * @return
+     */
 
     @PostMapping("/getShareInfo")
     public R<ShowShareVo> getShareInfo(HttpSession session, @RequestParam("shareId") String shareId) {
@@ -81,6 +136,17 @@ public class ShowShareController {
         return R.success(showShareVo);
     }
 
+    /***
+     *
+     * @param session
+     * @param request
+     * @param pageNo
+     * @param pageSize
+     * @param shareId
+     * @param filePid
+     * @return
+     * @throws JsonProcessingException
+     */
     @SneakyThrows
     @PostMapping("/loadFileList")
     public R<FileShareDto> loadFileList(HttpSession session,
@@ -90,16 +156,34 @@ public class ShowShareController {
                                         @RequestParam("shareId") String shareId,
                                         @RequestParam("filePid") String filePid) throws JsonProcessingException {
 
+
         //先查出分享的相关信息
         LambdaQueryWrapper<FileShare> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(FileShare::getShareId, shareId);
         FileShare fileShare = fileShareService.getOne(lambdaQueryWrapper);
 
+        //获取session里面的验证码为空跳转到验证页面
+        String code = (String) session.getAttribute("code");
+        if (code == null || !code.equals(fileShare.getCode())) {
+            FileShareDto fileShareDto = new FileShareDto();
+            R<FileShareDto> r = new R<>();
+            r.setStatus("success");
+            r.setCode(200);
+            r.setInfo("验证码错误");
+            return r;
+        }
 
         Page<FileInfo> page = new Page<>(Long.valueOf(pageNo), Long.valueOf(pageSize));
         //构建分页
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper2 = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper2.eq(FileInfo::getFileId, fileShare.getFileId()).eq(FileInfo::getFilePid, filePid);
+
+        //判断是否为目录
+        if (fileShare.getFileId().equals(filePid)) {
+            lambdaQueryWrapper2.eq(FileInfo::getFilePid, filePid);
+        } else {
+            lambdaQueryWrapper2.eq(FileInfo::getFileId, fileShare.getFileId()).eq(FileInfo::getFilePid, filePid);
+        }
+
         Page<FileInfo> page1 = fileInfoService.page(page, lambdaQueryWrapper2);
         //构建返回对象
         FileShareDto FileShareDto = new FileShareDto();
@@ -119,6 +203,14 @@ public class ShowShareController {
             fileShareVo.setFolderType(String.valueOf(fileInfo.getFolderType()));
             list.add(fileShareVo);
         }
+
+        //更新浏览次数
+        LambdaUpdateWrapper<FileShare> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
+        lambdaUpdateWrapper.eq(FileShare::getShareId, shareId);
+        lambdaUpdateWrapper.set(FileShare::getBrowseCount, fileShare.getBrowseCount() + 1)
+                .set(FileShare::getUpdateTime, LocalDateTime.now());
+        fileShareService.update(lambdaUpdateWrapper);
+
         FileShareDto.setList(list);
         return R.success(FileShareDto);
     }
@@ -142,6 +234,8 @@ public class ShowShareController {
         lambdaQueryWrapper.eq(FileShare::getShareId, shareId);
         FileShare fileShare = fileShareService.getOne(lambdaQueryWrapper);
         if (fileShare.getCode().equals(code)) {
+            //成功后写入验证码
+            session.setAttribute("code", code);
             return R.success("请求成功");
         }
         return R.error("验证码不正确！");
@@ -187,7 +281,13 @@ public class ShowShareController {
         return R.success(showShareVo);
     }
 
-
+    /***
+     *分享视频播放
+     * @param response
+     * @param fileId
+     * @param fileShare
+     * @param session
+     */
     @GetMapping("ts/getVideoInfo/{fileShare}/{fileId}")
     public void getVideo(HttpServletResponse response,
                          @PathVariable("fileId") String fileId,
@@ -207,4 +307,134 @@ public class ShowShareController {
         }
         fileUtil.readFile(response, path);
     }
+
+    /***
+     *
+     * 保存到我的云盘
+     * @param session
+     * @param request
+     * @param shareId
+     * @param shareFileIds
+     * @param myFolderId
+     * @return
+     * @throws UnsupportedEncodingException
+     * @throws JsonProcessingException
+     */
+    @PostMapping("/saveShare")
+    @Transactional
+    public R<String> saveShare(HttpSession session,
+                               HttpServletRequest request,
+                               @RequestParam("shareId") String shareId,
+                               @RequestParam("shareFileIds") String shareFileIds,
+                               @RequestParam("myFolderId") String myFolderId) throws UnsupportedEncodingException, JsonProcessingException {
+        //先构建所需要的信息
+        String cookiesValueId = cookieUtil.getCookiesValue(request, "userInfo", "userId"); //登录者的id
+
+        LambdaQueryWrapper<FileShare> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(FileShare::getShareId, shareId);
+        FileShare fileShare = fileShareService.getOne(lambdaQueryWrapper);
+
+
+        String[] split = shareFileIds.split(",");
+        for (String fileids : split) {
+            //获得当前文件的所有信息
+            LambdaQueryWrapper<FileInfo> lambdaQueryWrapper1=new LambdaQueryWrapper<>();
+            lambdaQueryWrapper1.eq(FileInfo::getFileId,fileids).eq(FileInfo::getUserId,fileShare.getUserId());
+            FileInfo one = fileInfoService.getOne(lambdaQueryWrapper1);
+
+            //生成保存文件新的id信息
+            String newId = StringUtil.generateRandomString(10);
+            String saveid = StringUtil.generateRandomString(15);
+
+            //保存到save_info
+            SaveInfo saveInfo = new SaveInfo();
+            saveInfo.setSaveId(saveid);
+            saveInfo.setXianUserId(cookiesValueId);
+            saveInfo.setXianFileId(newId);
+            saveInfo.setYuanFileId(fileShare.getFileId());
+            saveInfo.setYuanUserId(fileShare.getUserId());
+            saveInfoService.save(saveInfo);
+
+            //保存文件类
+            FileInfo fileInfo1 = new FileInfo();
+            BeanUtils.copyProperties(one, fileInfo1);
+            fileInfo1.setFileId(newId);
+            fileInfo1.setFilePid(myFolderId);
+            fileInfo1.setSaveSf(true);
+            fileInfo1.setUserId(cookiesValueId);
+            fileInfo1.setCreateTime(LocalDateTime.now());
+            fileInfoService.save(fileInfo1);
+            //递归
+            duiGui(fileids, cookiesValueId, fileShare,newId);
+        }
+
+        return R.success("保存成功");
+    }
+
+    @Transactional
+    //递归查询当前目录下还存在子目录
+    public void duiGui(String fileId, String cookiesValueId, FileShare fileShare,String pidid) {
+        //先对这个文件或目录进行保存
+        LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(FileInfo::getFilePid, fileId);
+        List<FileInfo> list = fileInfoService.list(lambdaQueryWrapper);
+        for (FileInfo fileInfo : list) {
+            //如果是目录，继续调用这个函数，并保存这个目录
+            if (fileInfo.getFolderType() == 1) {
+                log.info("递归");
+                //生成保存文件新的id信息
+                String newId = StringUtil.generateRandomString(10);
+                String saveid = StringUtil.generateRandomString(15);
+
+                //保存到save_info
+                SaveInfo saveInfo = new SaveInfo();
+                saveInfo.setSaveId(saveid);
+                saveInfo.setXianUserId(cookiesValueId);
+                saveInfo.setXianFileId(newId);
+                saveInfo.setYuanFileId(fileInfo.getFileId());
+                saveInfo.setYuanUserId(fileInfo.getUserId());
+                saveInfoService.save(saveInfo);
+
+                //保存文件类
+                FileInfo fileInfo1 = new FileInfo();
+                BeanUtils.copyProperties(fileInfo, fileInfo1);
+                fileInfo1.setFileId(newId);
+                fileInfo1.setFilePid(pidid);
+                fileInfo1.setSaveSf(true);
+                fileInfo1.setUserId(cookiesValueId);
+                fileInfo1.setCreateTime(LocalDateTime.now());
+                fileInfoService.save(fileInfo1);
+
+                //递归
+                duiGui(fileInfo.getFileId(), cookiesValueId, fileShare,newId);
+            }
+            //如果是文件，进行保存
+            else {
+                log.info("保存");
+                //生成保存文件新的id信息
+                String newId = StringUtil.generateRandomString(10);
+                String saveid = StringUtil.generateRandomString(15);
+
+                //保存到save_info
+                SaveInfo saveInfo = new SaveInfo();
+                saveInfo.setSaveId(saveid);
+                saveInfo.setXianUserId(cookiesValueId);
+                saveInfo.setXianFileId(newId);
+                saveInfo.setYuanFileId(fileInfo.getFileId());
+                saveInfo.setYuanUserId(fileInfo.getUserId());
+                saveInfoService.save(saveInfo);
+
+                //保存文件类
+                FileInfo fileInfo1 = new FileInfo();
+                BeanUtils.copyProperties(fileInfo, fileInfo1);
+                fileInfo1.setFileId(newId);
+                fileInfo1.setFilePid(pidid);
+                fileInfo1.setSaveSf(true);
+                fileInfo1.setUserId(cookiesValueId);
+                fileInfo1.setCreateTime(LocalDateTime.now());
+                fileInfoService.save(fileInfo1);
+            }
+        }
+    }
+
 }
