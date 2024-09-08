@@ -10,6 +10,7 @@ import com.example.easycloudpan.service.SaveInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -41,6 +42,8 @@ public class CommonController {
     private SaveInfoService saveInfoService;
     @Value("${easycloudpan.rootuser}")
     private String root;
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     /**
      * 上传图片
@@ -73,6 +76,9 @@ public class CommonController {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        //数据发生更新
+        String cachekey1 = String.format("admin:user:%s:loadUserList", root);
+        redisTemplate.delete(cachekey1);
         return R.success(imge);
     }
 
@@ -128,7 +134,7 @@ public class CommonController {
             //创建输入流，读取传入的图片
             String[] split = imageName.split("\\.");
 
-            String  path = fileimagepath + "\\" + "croveImage" + "\\" + imageName;
+            String path = fileimagepath + "\\" + "croveImage" + "\\" + imageName;
 
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
@@ -160,7 +166,7 @@ public class CommonController {
         try {
             log.info(imageName);
             //创建输入流，读取传入的图片
-            String path = fileimagepath  + "\\" + "croveImage" + "\\" + imageName;
+            String path = fileimagepath + "\\" + "croveImage" + "\\" + imageName;
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();
@@ -233,7 +239,7 @@ public class CommonController {
             String[] split = filemd5.split("_");
 
             LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
-            lambdaQueryWrappe.eq(FileInfo::getFileMd5, split[0]).eq(FileInfo::getFileId,split[1]);
+            lambdaQueryWrappe.eq(FileInfo::getFileMd5, split[0]).eq(FileInfo::getFileId, split[1]);
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             //创建输入流，读取传入的图片
             String path = fileimagepath + "\\" + "\\" + one.getFilePath();
@@ -285,7 +291,7 @@ public class CommonController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = fileimagepath  + "\\" + "\\" + one.getFilePath();
+            String path = fileimagepath + "\\" + "\\" + one.getFilePath();
             response.setContentType("application/octet-stream");
             // 对文件名进行 URL 编码,解决前端无法识别空格导致下载格式异常的问题
             String encodedFileName = URLEncoder.encode(one.getFileName(), StandardCharsets.UTF_8.toString())
@@ -335,7 +341,7 @@ public class CommonController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = fileimagepath  + "\\" + "\\" + one.getFilePath();
+            String path = fileimagepath + "\\" + "\\" + one.getFilePath();
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();

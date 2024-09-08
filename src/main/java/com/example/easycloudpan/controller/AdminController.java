@@ -15,14 +15,17 @@ import com.example.easycloudpan.service.UserInfoServise;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 import com.example.easycloudpan.utils.FileUtil;
+
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.File;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 //3200839842@qq.com
 @RestController
@@ -41,8 +44,10 @@ public class AdminController {
     private String diskFreeSpace;
     @Value("${easycloudpan.sys_space}")
     private String sysSpace;
+    @Autowired
+    private RedisTemplate redisTemplate;
     // 定义常量，1 MB = 1024 * 1024 字节
-        //文件路径
+    //文件路径
     @Value("${easycloudpan.filepath}")
     private String filepath;
     private static final long MEGABYTE_TO_BYTES = 1024L * 1024L;
@@ -65,9 +70,28 @@ public class AdminController {
 
         //String userid = session.getAttribute("userid").toString();
         String rootzh = session.getAttribute("root").toString();
+
         //验证是否为管理用户
         if (!rootzh.equals(root)) {
             return R.error("非法操作！");
+        }
+
+        // 构建缓存键
+        String cacheKey = String.format("userList:root:%s:status:%s:nickNameFuzzy:%s:pageNo:%s:pageSize:%s",
+                rootzh, status, nickNameFuzzy, pageNo, pageSize);
+        String cachekey1 = String.format("admin:user:%s:loadUserList", rootzh);
+
+        //判断数据是否以及被修改
+        if (redisTemplate.opsForValue().get(cachekey1) == null) {
+            //为空已经被修改,删除原数据
+            redisTemplate.delete(cacheKey);
+            redisTemplate.opsForValue().set(cachekey1, 1, 10, TimeUnit.MINUTES);
+        }
+
+        // 从 Redis 获取缓存数据
+        UserInfoDto cachedDto = (UserInfoDto) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedDto != null) {
+            return R.success(cachedDto);
         }
 
         Page<UserInfo> page = new Page<>(Long.valueOf(pageNo), Long.valueOf(pageSize));
@@ -90,6 +114,8 @@ public class AdminController {
         userInfoDto.setPageNo(Long.valueOf(pageNo));
         userInfoDto.setPageTotal(page1.getTotal());
         userInfoDto.setTotalCount(page1.getCurrent());
+        // 更新缓存
+        redisTemplate.opsForValue().set(cacheKey, userInfoDto, 10, TimeUnit.MINUTES);
         return R.success(userInfoDto);
     }
 
@@ -110,10 +136,15 @@ public class AdminController {
         if (!rootzh.equals(root)) {
             return R.error("非法操作！");
         }
+
+
         LambdaUpdateWrapper<UserInfo> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
         lambdaUpdateWrapper.eq(UserInfo::getUserId, userid);
         lambdaUpdateWrapper.set(UserInfo::getStatus, status).set(UserInfo::getUpdateTime, LocalDateTime.now());
         if (userInfoServise.update(lambdaUpdateWrapper)) {
+            //数据发生更新
+            String cachekey1 = String.format("admin:user:%s:loadUserList", rootzh);
+            redisTemplate.delete(cachekey1);
             return R.success("更新成功!");
         }
         return R.error("更新失败");
@@ -138,6 +169,7 @@ public class AdminController {
         if (!rootzh.equals(root)) {
             return R.error("非法操作！");
         }
+
         // 将兆字节转换为字节
         long bytes = Long.valueOf(totalSpace) * MEGABYTE_TO_BYTES;
         //获取文件盘符所剩余空间
@@ -155,6 +187,9 @@ public class AdminController {
         lambdaUpdateWrapper.eq(UserInfo::getUserId, userid);
         lambdaUpdateWrapper.set(UserInfo::getTotalSpace, bytes).set(UserInfo::getUpdateTime, LocalDateTime.now());
         if (userInfoServise.update(lambdaUpdateWrapper)) {
+            //数据发生更新
+            String cachekey1 = String.format("admin:user:%s:loadUserList", rootzh);
+            redisTemplate.delete(cachekey1);
             return R.success("更新成功!");
         }
         return R.error("更新失败");
@@ -174,7 +209,7 @@ public class AdminController {
     public R<FileInfoDto> loadFileList(HttpSession session,
                                        @RequestParam(value = "fileNameFuzzy", required = false) String fileNameFuzzy,
                                        @RequestParam("pageNo") String pageNo,
-                                       @RequestParam("pageSize") String pageSize ,
+                                       @RequestParam("pageSize") String pageSize,
                                        @RequestParam("filePid") String filePid) {
 
 
@@ -183,7 +218,24 @@ public class AdminController {
         if (!rootzh.equals(root)) {
             return R.error("非法操作！");
         }
-          Page<FileInfo> page = new Page<>(Long.valueOf(pageNo), Long.valueOf(pageSize));
+        // 构建缓存键
+        String cacheKey = String.format("fileList:root:%s:fileNameFuzzy:%s:pageNo:%s:pageSize:%s:filePid:%s",
+                rootzh, fileNameFuzzy, pageNo, pageSize, filePid);
+        String cachekey1 = String.format("admin:user:%s:loadFileList", rootzh);
+
+        //判断数据是否以及被修改
+        if (redisTemplate.opsForValue().get(cachekey1) == null) {
+            //为空已经被修改,删除原数据
+            redisTemplate.delete(cacheKey);
+            redisTemplate.opsForValue().set(cachekey1, 1, 10, TimeUnit.MINUTES);
+        }
+        // 尝试从 Redis 获取缓存数据
+        FileInfoDto cachedDto = (FileInfoDto) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedDto != null) {
+            return R.success(cachedDto);
+        }
+
+        Page<FileInfo> page = new Page<>(Long.valueOf(pageNo), Long.valueOf(pageSize));
         //构建查询条件
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
 //        lambdaQueryWrapper.eq(FileInfo::getDelFlag,0).eq(FileInfo::getUserId,userid);
@@ -207,10 +259,10 @@ public class AdminController {
         fileInfoDto.setPageTotal(page1.getTotal());
         fileInfoDto.setTotalCount(page1.getCurrent());
 
+        // 更新缓存
+        redisTemplate.opsForValue().set(cacheKey, fileInfoDto, 10, TimeUnit.MINUTES);
         return R.success(fileInfoDto);
     }
-
-
 
 
     /***
@@ -273,7 +325,7 @@ public class AdminController {
      * @param userid
      * @param session
      */
-        @GetMapping("ts/getVideoInfo/{userId}/{fileId}")
+    @GetMapping("ts/getVideoInfo/{userId}/{fileId}")
     public void getVideo(HttpServletResponse response,
                          @PathVariable("fileId") String fileId,
                          @PathVariable("userId") String userid,
@@ -282,21 +334,21 @@ public class AdminController {
         //验证是否为管理用户
         if (!rootzh.equals(root)) {
             log.info("非法播放操作！");
-            return ;
+            return;
         }
         String path;
         if (fileId.endsWith(".ts")) {
             String[] split = fileId.split("_");
             path = filepath + "\\" + split[0] + "\\" + fileId;
         } else {
-            path = filepath +"\\" + fileId + "\\" + fileId + ".m3u8";
+            path = filepath + "\\" + fileId + "\\" + fileId + ".m3u8";
         }
         fileUtil.readFile(response, path);
     }
 
 
-        /***
-     * 更新用户状态
+    /***
+     * 更新用户文件状态
      * @param session
      * @param status
      * @param userid
@@ -318,11 +370,13 @@ public class AdminController {
         lambdaUpdateWrapper.eq(FileInfo::getFileId, fileId);
         lambdaUpdateWrapper.set(FileInfo::getFengJing, status).set(FileInfo::getLastUpdateTime, LocalDateTime.now());
         if (fileInfoService.update(lambdaUpdateWrapper)) {
+            //数据发生更新
+            String cachekey1 = String.format("admin:user:%s:loadFileList", rootzh);
+            redisTemplate.delete(cachekey1);
             return R.success("更新成功!");
         }
         return R.error("更新失败");
     }
-
 
 
 }

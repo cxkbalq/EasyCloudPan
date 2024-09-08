@@ -163,6 +163,11 @@ public class UserInfoController {
                 String string = UUID.randomUUID().toString();
                 redisTemplate.delete(email);
                 userInfoServise.save(userInfo);
+
+                //数据发生更新
+                String cachekey1 = String.format("admin:user:%s:loadUserList", root);
+                redisTemplate.delete(cachekey1);
+
                 return R.success("账号注册成功");
                 //创建用户根目录
 //                File file = new File(filepath + userInfo.getUserId());
@@ -190,9 +195,9 @@ public class UserInfoController {
                                      @RequestParam String checkCode) {
         //获取session里的验证码
         String sessionCode = String.valueOf(session.getAttribute("CODE")).toLowerCase();
-        log.info(email);
-        log.info(password);
-        if (!sessionCode.equals(checkCode)) {
+//        log.info(email);
+//        log.info(password);
+        if (sessionCode.equals(checkCode)) {
             LambdaQueryWrapper<UserInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
             lambdaQueryWrapper.eq(UserInfo::getEmail, email).eq(UserInfo::getPassword, password);
             UserInfo one = userInfoServise.getOne(lambdaQueryWrapper);

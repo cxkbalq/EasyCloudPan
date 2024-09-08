@@ -14,6 +14,8 @@ import com.example.easycloudpan.utils.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +27,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/file")
@@ -36,6 +39,8 @@ public class FileInfoController {
     private FileInfoService fileInfoService;
     @Autowired
     private FileUtil fileUtil;
+    @Autowired
+    private RedisTemplate redisTemplate;
     //文件路径
     @Value("${easycloudpan.filepath}")
     private String filepath;
@@ -44,27 +49,54 @@ public class FileInfoController {
     //获取文件列表
     @PostMapping("/loadDataList")
     public R<FileInfoDto> loadDataList(HttpSession session,
-                                      @RequestParam String category,
+                                       @RequestParam String category,
                                        @RequestParam(required = false) String filePid,
                                        @RequestParam(required = false) String fileNameFuzzy,
                                        @RequestParam(required = false) String pageNo,
                                        @RequestParam(required = false) String pageSize) {
+        log.info("当前类型为：" + category);
 
         //转化类型
         String[] typelist = {"all", "video", "music", "image", "doc", "others"};
         int type = Arrays.asList(typelist).indexOf(category);
-          String userid = session.getAttribute("userid").toString();
+        log.info("当前类型为：" + String.valueOf(type));
+        String userid = session.getAttribute("userid").toString();
+        if (filePid == null) {
+            filePid = String.valueOf(0);
+        }
+        // 缓存键
+        String cacheKey = String.format("fileInfo:user:%s:category:%s:filePid:%s:fileNameFuzzy:%s:pageNo:%s:pageSize:%s",
+                userid, type, filePid, fileNameFuzzy, pageNo, pageSize);
 
+        String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid);
 
+        //判断数据是否以及被修改
+        if (redisTemplate.opsForValue().get(cachekey1) == null) {
+            //为空已经被修改,删除所有原数据
+            // 1:视频 2:音频 3:图片 4:文档 5:其他
+            for (int i = 0; i < 6; i++) {
+                cacheKey = String.format("fileInfo:user:%s:category:%s:filePid:%s:fileNameFuzzy:%s:pageNo:%s:pageSize:%s",
+                        userid, i, filePid, fileNameFuzzy, pageNo, pageSize);
+                redisTemplate.delete(cacheKey);
+            }
+
+            redisTemplate.opsForValue().set(cachekey1, 1, 10, TimeUnit.MINUTES);
+        }
+
+        cacheKey = String.format("fileInfo:user:%s:category:%s:filePid:%s:fileNameFuzzy:%s:pageNo:%s:pageSize:%s",
+                userid, type, filePid, fileNameFuzzy, pageNo, pageSize);
+        // 从 Redis 获取缓存数据
+        FileInfoDto cachedDto = (FileInfoDto) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedDto != null) {
+            return R.success(cachedDto);
+        }
 
         Page<FileInfo> page = new Page<>(Long.valueOf(pageNo), Long.valueOf(pageSize));
         /*        Page<FileInfo> page=new Page<>(1,15);*/
         //构建查询条件
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(FileInfo::getDelFlag,0).eq(FileInfo::getUserId,userid);
-        if (filePid == null) {
-            filePid = String.valueOf(0);
-        }
+        lambdaQueryWrapper.eq(FileInfo::getDelFlag, 0).eq(FileInfo::getUserId, userid);
+
         lambdaQueryWrapper.eq(FileInfo::getFilePid, filePid);
         if (fileNameFuzzy != null) {
             lambdaQueryWrapper.like(FileInfo::getFileName, fileNameFuzzy);
@@ -81,6 +113,8 @@ public class FileInfoController {
         fileInfoDto.setPageNo(Long.valueOf(pageNo));
         fileInfoDto.setPageTotal(page1.getTotal());
         fileInfoDto.setTotalCount(page1.getCurrent());
+        // 更新缓存
+        redisTemplate.opsForValue().set(cacheKey, fileInfoDto, 60, TimeUnit.MINUTES);
 
         return R.success(fileInfoDto);
     }
@@ -95,6 +129,13 @@ public class FileInfoController {
                                         @RequestParam("chunkIndex") String chunkIndex,
                                         @RequestParam("chunks") String chunks,
                                         HttpSession session) throws Exception {
+
+        String userid = session.getAttribute("userid").toString();
+        String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid);
+
+        //输出发生变化,删除键值
+        redisTemplate.delete(cachekey1);
+
         // 构建FileUploadDTO
         FileUploadDTO fileUploadDTO = new FileUploadDTO();
         fileUploadDTO.setId(fileId);
@@ -118,21 +159,32 @@ public class FileInfoController {
     public void getVideo(HttpServletResponse response, @PathVariable("fileId") String fileId) {
 
         //解决保存文件以及秒传文件，出现请求错误id的情况，后期加上redis，提高响应速度
-        LambdaQueryWrapper<FileInfo> lambdaQueryWrapper=new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(FileInfo::getFileId,fileId.substring(0,10));
-        FileInfo one = fileInfoService.getOne(lambdaQueryWrapper);
-        //文件实际所处的路径
-        String substring = one.getFilePath().substring(0, 10);
-        //构建返回路径
-        String path;
-        if (fileId.endsWith(".ts")) {
-            String[] split = fileId.split("_");
-            path = filepath + "\\" + substring + "\\" + substring+"_"+split[1];
-            log.info(path);
-        } else {
-            path = filepath + "\\" + substring + "\\" + substring + ".m3u8";
+        String cacheKey = "fileInfo:" + fileId.substring(0, 10);
+        ValueOperations<String, FileInfo> valueOperations = redisTemplate.opsForValue();
+        FileInfo one = valueOperations.get(cacheKey);
+        if (one == null) {
+            LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+            lambdaQueryWrapper.eq(FileInfo::getFileId, fileId.substring(0, 10));
+            one = fileInfoService.getOne(lambdaQueryWrapper);
+            if (one != null) {
+                valueOperations.set(cacheKey, one, 10, TimeUnit.MINUTES);
+            }
         }
-        fileUtil.readFile(response, path);
+        if (one != null) {
+            //文件实际所处的路径
+            String substring = one.getFilePath().substring(0, 10);
+            //构建返回路径
+            String path;
+            if (fileId.endsWith(".ts")) {
+                String[] split = fileId.split("_");
+                path = filepath + "\\" + substring + "\\" + substring + "_" + split[1];
+                log.info(path);
+            } else {
+                path = filepath + "\\" + substring + "\\" + substring + ".m3u8";
+            }
+            fileUtil.readFile(response, path);
+        }
+
     }
 
 
@@ -149,6 +201,9 @@ public class FileInfoController {
                                 @RequestParam("fileName") String fileName,
                                 @RequestParam("filePid") String filePid) {
         String userid = session.getAttribute("userid").toString();
+        String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid);
+        //输出发生变化,删除键值
+        redisTemplate.delete(cachekey1);
         //判断是否存在同名目录
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(FileInfo::getFileName, fileName);
@@ -186,18 +241,39 @@ public class FileInfoController {
                                            @RequestParam("path") String filepath,
                                            @RequestParam("shareId") String shareId) {
         String userid = session.getAttribute("userid").toString();
-        //分割字符串
-        String[] path = filepath.split("/");
-        //保存结果
+        // 分割字符串
+        String[] pathParts = filepath.split("/");
+        // 保存结果
         List<FileInfo> results = new ArrayList<>();
-        // 2. 遍历每个分割的部分并执行查询
-        for (String part : path) {
-            LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-            lambdaQueryWrapper.eq(FileInfo::getFileId, part);
-            lambdaQueryWrapper.eq(FileInfo::getUserId, userid);
-            FileInfo one = fileInfoService.getOne(lambdaQueryWrapper);
-            results.add(one);
+        // Redis 缓存操作
+        ValueOperations<String, FileInfo> valueOperations = redisTemplate.opsForValue();
+
+
+        // 遍历每个分割的部分并执行查询
+        for (String part : pathParts) {
+            String cacheKey = "fileInfo:" + userid + ":" + part;
+            String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid);
+            //判断数据是否以及被修改
+            if (redisTemplate.opsForValue().get(cachekey1) == null) {
+                //为空已经被修改,删除原数据
+                redisTemplate.delete(cacheKey);
+                redisTemplate.opsForValue().set(cachekey1, 1, 10, TimeUnit.MINUTES);
+            }
+            FileInfo fileInfo = valueOperations.get(cacheKey);
+            if (fileInfo == null) {
+                LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+                lambdaQueryWrapper.eq(FileInfo::getFileId, part);
+                lambdaQueryWrapper.eq(FileInfo::getUserId, userid);
+                fileInfo = fileInfoService.getOne(lambdaQueryWrapper);
+
+                if (fileInfo != null) {
+                    valueOperations.set(cacheKey, fileInfo, 60, TimeUnit.MINUTES);
+                }
+            }
+
+            results.add(fileInfo);
         }
+
         return R.success(results);
     }
 
@@ -213,6 +289,9 @@ public class FileInfoController {
     public R<String> rename(HttpSession session, @RequestParam("fileId") String fileId,
                             @RequestParam("fileName") String fileName) {
         String userid = session.getAttribute("userid").toString();
+        String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid);
+        //输出发生变化,删除键值
+        redisTemplate.delete(cachekey1);
         //判断同一目录是否存在同名文件
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(FileInfo::getUserId, userid);
@@ -237,7 +316,7 @@ public class FileInfoController {
         LambdaUpdateWrapper<FileInfo> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
         lambdaUpdateWrapper.eq(FileInfo::getUserId, userid).eq(FileInfo::getFileId, fileId);
         lambdaUpdateWrapper.set(FileInfo::getFileName, fileName);
-        lambdaUpdateWrapper.set(FileInfo::getLastUpdateTime,LocalDateTime.now());
+        lambdaUpdateWrapper.set(FileInfo::getLastUpdateTime, LocalDateTime.now());
         fileInfoService.update(lambdaUpdateWrapper);
         return R.success("重命名成功！");
     }
@@ -251,10 +330,24 @@ public class FileInfoController {
     @PostMapping("/loadAllFolder")
     public R<List<FileInfo>> loadAllFolder(HttpSession session) {
         String userid = session.getAttribute("userid").toString();
+        // 构建缓存键
+        String cacheKey = String.format("fileInfo:user:%s:folderList", userid);
+        String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid);
+        //判断数据是否以及被修改
+        if (redisTemplate.opsForValue().get(cachekey1) == null) {
+            //为空已经被修改,删除原数据
+            redisTemplate.delete(cacheKey);
+            redisTemplate.opsForValue().set(cachekey1, 1, 10, TimeUnit.MINUTES);
+        }
+        // 从 Redis 获取缓存数据
+        List<FileInfo> cachedList = (List<FileInfo>) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedList != null) {
+            return R.success(cachedList);
+        }
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(FileInfo::getFolderType, 1);
         lambdaQueryWrapper.eq(FileInfo::getUserId, userid);
-        lambdaQueryWrapper.eq(FileInfo::getDelFlag,0).eq(FileInfo::getFengJing,2);
+        lambdaQueryWrapper.eq(FileInfo::getDelFlag, 0).eq(FileInfo::getFengJing, 2);
         List<FileInfo> list1 = new ArrayList<>();
         //创建默认目录
         FileInfo fileInfo = new FileInfo();
@@ -268,6 +361,8 @@ public class FileInfoController {
         if (list.size() == 0 || list == null) {
             R.error("当前未创建目录！");
         }
+        // 更新缓存
+        redisTemplate.opsForValue().set(cacheKey, list1, 10, TimeUnit.MINUTES);
         return R.success(list1);
     }
 
@@ -283,6 +378,10 @@ public class FileInfoController {
     public R<String> changeFileFolder(HttpSession session, @RequestParam("fileIds") String fileIds,
                                       @RequestParam("filePid") String filePid) {
         String userid = session.getAttribute("userid").toString();
+        String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid);
+
+        //输出发生变化,删除键值
+        redisTemplate.delete(cachekey1);
         String[] split = fileIds.split(",");
         //是否有重命名失败的文件
         int flag = 0;
@@ -325,7 +424,7 @@ public class FileInfoController {
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(FileInfo::getUserId, userid).eq(FileInfo::getFileId, fileid);
         FileInfo one = fileInfoService.getOne(lambdaQueryWrapper);
-        return R.success(one.getFileMd5()+"_"+one.getFileId());
+        return R.success(one.getFileMd5() + "_" + one.getFileId());
     }
 
     /***
@@ -339,15 +438,20 @@ public class FileInfoController {
     public R<String> delFile(HttpSession session,
                              @RequestParam("fileIds") String fileIds) {
         String userid = session.getAttribute("userid").toString();
+        String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid);
+        String cachekey2 = String.format("recycle:user:%s:loadRecycleList", userid);
+        //输出发生变化,删除键值
+        redisTemplate.delete(cachekey1);
+        redisTemplate.delete(cachekey2);
         String[] split_id = fileIds.split(",");
-        LambdaUpdateWrapper<FileInfo>lambdaUpdateWrapper=new LambdaUpdateWrapper<>();
-        for (String id:split_id){
-            lambdaUpdateWrapper.set(FileInfo::getDelFlag,1);
-            lambdaUpdateWrapper.set(FileInfo::getRecoveryTime,LocalDateTime.now());
-            lambdaUpdateWrapper.set(FileInfo::getLastUpdateTime,LocalDateTime.now());
-            lambdaUpdateWrapper.eq(FileInfo::getFileId,id).eq(FileInfo::getUserId,userid);
+        LambdaUpdateWrapper<FileInfo> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
+        for (String id : split_id) {
+            lambdaUpdateWrapper.set(FileInfo::getDelFlag, 1);
+            lambdaUpdateWrapper.set(FileInfo::getRecoveryTime, LocalDateTime.now());
+            lambdaUpdateWrapper.set(FileInfo::getLastUpdateTime, LocalDateTime.now());
+            lambdaUpdateWrapper.eq(FileInfo::getFileId, id).eq(FileInfo::getUserId, userid);
             boolean update = fileInfoService.update(lambdaUpdateWrapper);
-            if(!update){
+            if (!update) {
                 log.info("删除数据更新失败！");
                 return R.error("删除数据更新失败！");
             }
@@ -356,11 +460,5 @@ public class FileInfoController {
         return R.success("删除成功！");
     }
 
-    //    @PostMapping("/newFoloder")
-//    public R<String> rename2(HttpSession session, @RequestParam("fileId") String fileId,
-//                             @RequestParam("fileName") String fileName) {
-//        String userid = session.getAttribute("userid").toString();
-//        return null;
-//    }
 
 }
