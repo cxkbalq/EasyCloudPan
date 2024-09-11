@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+<<<<<<< HEAD
+=======
+/src/main/resources/res/
+>>>>>>> a9f9133 (添加README.md,修复硬编码问题，添加docker部署)
+/.mvn/
