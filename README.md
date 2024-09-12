@@ -20,27 +20,27 @@
 
 **主页：**
 
-![1](image\首页.png)
+![1](https://github.com/cxkbalq/EasyCloudPan/blob/master/image/1.png)
 
 
 
-**播放：**![2](image\播放.png)
+**播放：**![2](image\2.png)
 
 
 
 **分享：**
 
-![3](image\分享.png)
+![3](image\3.png)
 
 
 
-**回收站：![2](image\删除.png)**
+**回收站：![2](image\4.png)**
 
-**管理员：**![2](image\管理员.png)
+**管理员：**![2](image\5.png)
 
 
 
-**更加美观的邮箱发送：**![2](image\邮箱.png)
+**更加美观的邮箱发送：**![2](image\6.png)
 
 
 
