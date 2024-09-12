@@ -15,6 +15,7 @@ import com.example.easycloudpan.utils.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +23,7 @@ import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/share")
@@ -32,6 +34,8 @@ public class FileShareController {
     private FileShareService fileShareService;
     @Autowired
     private FileInfoService fileInfoService;
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     //@ModelAttribute这个注解可以接收非json类型的表单数据
 
@@ -45,6 +49,9 @@ public class FileShareController {
     public R<FileShare> shareFile(HttpSession session,
                                   @ModelAttribute FileShareDto2 fileShareVo) {
         String userid = session.getAttribute("userid").toString();
+        String cachekey1 = String.format("fileShare:user:%s:loadShareList", userid);
+        //缓存数据发生变化,删除键值
+        redisTemplate.delete(cachekey1);
         FileShare fileShare = new FileShare();
         //生成随机id
         String sId = StringUtil.generateRandomString(20);
@@ -116,10 +123,24 @@ public class FileShareController {
                                          @RequestParam("pageNo") String pageNo,
                                          @RequestParam("pageSize") String pageSize) {
         String userid = session.getAttribute("userid").toString();
+        String cacheKey = String.format("fileShare:user:%s:pageNo:%s:pageSize:%s", userid, pageNo, pageSize);
+        String cachekey1 = String.format("fileShare:user:%s:loadShareList", userid);
+        //判断数据是否以及被修改
+        if (redisTemplate.opsForValue().get(cachekey1) == null) {
+            //为空已经被修改,删除原数据
+            redisTemplate.delete(cacheKey);
+            redisTemplate.opsForValue().set(cachekey1, 1, 10, TimeUnit.MINUTES);
+        }
+
+        // 从 Redis 获取缓存数据
+        FileShareDto cachedDto = (FileShareDto) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedDto != null) {
+            return R.success(cachedDto);
+        }
         Page<FileShare> page = new Page<>(Long.valueOf(pageNo), Long.valueOf(pageSize));
         //构建分页
         LambdaQueryWrapper<FileShare> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(FileShare::getUserId, userid).eq(FileShare::getDeleted,0);
+        lambdaQueryWrapper.eq(FileShare::getUserId, userid).eq(FileShare::getDeleted, 0);
         Page<FileShare> page1 = fileShareService.page(page, lambdaQueryWrapper);
         //构建返回对象
         FileShareDto FileShareDto = new FileShareDto();
@@ -150,6 +171,8 @@ public class FileShareController {
 
         }
         FileShareDto.setList(list);
+         // 更新缓存
+        redisTemplate.opsForValue().set(cacheKey, FileShareDto, 10, TimeUnit.MINUTES);
         return R.success(FileShareDto);
     }
 
@@ -162,8 +185,14 @@ public class FileShareController {
     @PostMapping("/cancelShare")
     public R<String> cancelShare(HttpSession session, @RequestParam("shareIds") String shareIds) {
         String userid = session.getAttribute("userid").toString();
+        String cachekey1 = String.format("fileShare:user:%s:loadShareList", userid);
+        //缓存数据发生变化,删除键值
+        redisTemplate.delete(cachekey1);
         String[] split = shareIds.split(",");
         for (String shareId : split) {
+            //数据发生变化
+            String cachekey11 = String.format("showshare:share:%s:loadFileList", shareId);
+            redisTemplate.delete(cachekey11);
             LambdaUpdateWrapper<FileShare> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
             lambdaUpdateWrapper.eq(FileShare::getShareId, shareId).eq(FileShare::getUserId, userid);
             lambdaUpdateWrapper.set(FileShare::getDeleted, 1).set(FileShare::getUpdateTime, LocalDateTime.now());
@@ -171,7 +200,6 @@ public class FileShareController {
         }
         return R.success("更新成功！");
     }
-
 
 
 }

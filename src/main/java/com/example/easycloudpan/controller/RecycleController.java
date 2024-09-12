@@ -9,6 +9,7 @@ import com.example.easycloudpan.pojo.dto.FileInfoDto;
 import com.example.easycloudpan.service.FileInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @RestController()
@@ -24,27 +26,34 @@ public class RecycleController {
 
     @Autowired
     private FileInfoService fileInfoService;
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     @PostMapping("/loadRecycleList")
-    public R<FileInfoDto> delFile(HttpSession session , @RequestParam(required = false) String pageNo,
+    public R<FileInfoDto> delFile(HttpSession session, @RequestParam(required = false) String pageNo,
                                   @RequestParam(required = false) String pageSize) {
         String userid = session.getAttribute("userid").toString();
-                Page<FileInfo> page = new Page<>(Long.valueOf(pageNo), Long.valueOf(pageSize));
+        String cacheKey = String.format("fileInfo:user:%s:pageNo:%s:pageSize:%s:delFlag:1", userid, pageNo, pageSize);
+        String cachekey1 = String.format("recycle:user:%s:loadRecycleList", userid);
+
+        //判断数据是否以及被修改
+        if (redisTemplate.opsForValue().get(cachekey1) == null) {
+            //为空已经被修改,删除原数据
+            redisTemplate.delete(cacheKey);
+            redisTemplate.opsForValue().set(cachekey1, 1, 10, TimeUnit.MINUTES);
+        }
+
+        // 从 Redis 获取缓存数据
+        FileInfoDto cachedDto = (FileInfoDto) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedDto != null) {
+            return R.success(cachedDto);
+        }
+
+        Page<FileInfo> page = new Page<>(Long.valueOf(pageNo), Long.valueOf(pageSize));
         /*        Page<FileInfo> page=new Page<>(1,15);*/
         //构建查询条件
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-//        if (filePid == null) {
-//            filePid = String.valueOf(0);
-//        }
-//        lambdaQueryWrapper.eq(FileInfo::getFilePid, filePid);
-//        if (fileNameFuzzy != null) {
-//            lambdaQueryWrapper.like(FileInfo::getFileName, fileNameFuzzy);
-//        }
-//
-//        if (type != 0) {
-//            lambdaQueryWrapper.eq(FileInfo::getFileCategory, type);
-//        }
-        lambdaQueryWrapper.eq(FileInfo::getDelFlag,1).eq(FileInfo::getUserId,userid);
+        lambdaQueryWrapper.eq(FileInfo::getDelFlag, 1).eq(FileInfo::getUserId, userid);
         Page<FileInfo> page1 = fileInfoService.page(page, lambdaQueryWrapper);
         //构建返回对象
         FileInfoDto fileInfoDto = new FileInfoDto();
@@ -53,7 +62,8 @@ public class RecycleController {
         fileInfoDto.setPageNo(Long.valueOf(pageNo));
         fileInfoDto.setPageTotal(page1.getTotal());
         fileInfoDto.setTotalCount(page1.getCurrent());
-
+        // 更新缓存
+        redisTemplate.opsForValue().set(cacheKey, fileInfoDto, 10, TimeUnit.MINUTES);
         return R.success(fileInfoDto);
     }
 
@@ -66,6 +76,13 @@ public class RecycleController {
     @PostMapping("/recoverFile")
     public R<String> recoverFile(HttpSession session, @RequestParam("fileIds") String fileIds) {
         String userid = session.getAttribute("userid").toString();
+        //更新数据
+        String cachekey1 = String.format("recycle:user:%s:loadRecycleList", userid);
+        redisTemplate.delete(cachekey1);
+        String cachekey2 = String.format("fileInfo:user:%s:loadDataList", userid);
+        //输出发生变化,删除键值
+        redisTemplate.delete(cachekey2);
+
         String[] split = fileIds.split(",");
         for (String fileId : split) {
             LambdaUpdateWrapper<FileInfo> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
@@ -79,6 +96,9 @@ public class RecycleController {
     @PostMapping("/delFile")
     public R<String> delFile(HttpSession session, @RequestParam("fileIds") String fileIds) {
         String userid = session.getAttribute("userid").toString();
+        //更新数据
+        String cachekey1 = String.format("recycle:user:%s:loadRecycleList", userid);
+        redisTemplate.delete(cachekey1);
         String[] split = fileIds.split(",");
         for (String fileId : split) {
             LambdaUpdateWrapper<FileInfo> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();

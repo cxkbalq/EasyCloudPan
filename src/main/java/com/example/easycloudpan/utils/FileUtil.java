@@ -193,11 +193,12 @@ public class FileUtil {
 
     //文件切片，封面，图片缩略图获取
     public Boolean videoImageChuLi(Integer type, String filename, HttpSession session, String fileId) throws Exception {
+        String userid = session.getAttribute("userid").toString();
         String outputFile = filepath  + "\\" + filename;
         //进行视频处理
         if (type == 1) {
         //    D:\Downloads\file\1784458528288247809\RYzvdHGlUN7zwoIgSKJZinput.mp4
-            videoImageUtil.cutFile4Video(fileId, outputFile, filepath);
+            videoImageUtil.cutFile4Video(fileId, outputFile, filepath,userid);
             videoImageUtil.createCover4Video(new File(outputFile), 300, new File(filepath + "\\" + "croveImage" + "\\" + fileId + ".png"));
         }
         //进行图片处理

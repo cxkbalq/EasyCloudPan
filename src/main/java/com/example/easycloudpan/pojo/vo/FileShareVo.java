@@ -18,7 +18,7 @@ public class FileShareVo implements Serializable {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lastUpdateTime;
     private String code;
-    private int showCount;
+    private int browseCount;
     private String fileName;
     private String folderType;
     private String fileCategory;

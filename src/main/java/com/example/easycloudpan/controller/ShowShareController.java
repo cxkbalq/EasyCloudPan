@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -44,6 +45,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @RestController
@@ -57,6 +59,8 @@ public class ShowShareController {
     private UserInfoServise userInfoServise;
     @Autowired
     private SaveInfoService saveInfoService;
+    @Autowired
+    private RedisTemplate redisTemplate;
     @Autowired
     private CookieUtil cookieUtil;
     @Value("${easycloudpan.filepath}")
@@ -80,7 +84,7 @@ public class ShowShareController {
     }
 
     /***
-     *
+     *获取目录
      * @param session
      * @param
      * @param shareId
@@ -93,7 +97,6 @@ public class ShowShareController {
         LambdaQueryWrapper<FileShare> lambdaQueryWrapper1 = new LambdaQueryWrapper<>();
         lambdaQueryWrapper1.eq(FileShare::getShareId, shareId);
         FileShare one = fileShareService.getOne(lambdaQueryWrapper1);
-
 
         //分割字符串
         String[] path = filepath.split("/");
@@ -113,7 +116,7 @@ public class ShowShareController {
 
 
     /***
-     *
+     *获取分享相关信息
      * @param session
      * @param shareId
      * @return
@@ -143,7 +146,7 @@ public class ShowShareController {
     }
 
     /***
-     *
+     *加载分享文件列表
      * @param session
      * @param request
      * @param pageNo
@@ -162,12 +165,33 @@ public class ShowShareController {
                                         @RequestParam("shareId") String shareId,
                                         @RequestParam("filePid") String filePid) throws JsonProcessingException {
 
+        // 构建缓存键
+        String cacheKey = String.format("fileShareList:shareId:%s:filePid:%s:pageNo:%s:pageSize:%s",
+                shareId, filePid, pageNo, pageSize);
+
+        String cachekey1 = String.format("showshare:share:%s:loadFileList", shareId);
+
+        //判断数据是否以及被修改
+        if (redisTemplate.opsForValue().get(cachekey1) == null) {
+            //为空已经被修改,删除原数据
+            redisTemplate.delete(cacheKey);
+            redisTemplate.opsForValue().set(cachekey1, 1, 10, TimeUnit.MINUTES);
+        }
+
+        // 从 Redis 获取缓存数据
+        FileShareDto cachedDto = (FileShareDto) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedDto != null) {
+            return R.success(cachedDto);
+        }
 
         //先查出分享的相关信息
         LambdaQueryWrapper<FileShare> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(FileShare::getShareId, shareId);
         FileShare fileShare = fileShareService.getOne(lambdaQueryWrapper);
 
+        String cachekey2 = String.format("fileShare:user:%s:loadShareList", fileShare.getUserId());
+        //缓存数据发生变化,删除键值
+        redisTemplate.delete(cachekey2);
         //获取session里面的验证码为空跳转到验证页面
         String code = (String) session.getAttribute("code");
         if (code == null || !code.equals(fileShare.getCode())) {
@@ -200,7 +224,6 @@ public class ShowShareController {
         List<FileInfo> records = page1.getRecords();
         List<FileShareVo> list = new ArrayList<>();
         for (FileInfo fileInfo : records) {
-
             FileShareVo fileShareVo = new FileShareVo();
             BeanUtils.copyProperties(fileInfo, fileShareVo);
             fileShareVo.setExpireTime(fileShare.getExpireTime());
@@ -216,8 +239,9 @@ public class ShowShareController {
         lambdaUpdateWrapper.set(FileShare::getBrowseCount, fileShare.getBrowseCount() + 1)
                 .set(FileShare::getUpdateTime, LocalDateTime.now());
         fileShareService.update(lambdaUpdateWrapper);
-
         FileShareDto.setList(list);
+        // 更新缓存
+        redisTemplate.opsForValue().set(cacheKey, FileShareDto, 1, TimeUnit.MINUTES);
         return R.success(FileShareDto);
     }
 
@@ -301,8 +325,8 @@ public class ShowShareController {
                          HttpSession session) {
 
         //解决保存文件以及秒传文件，出现请求错误id的情况，后期加上redis，提高响应速度
-        LambdaQueryWrapper<FileInfo> lambdaQueryWrapper=new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(FileInfo::getFileId,fileId.substring(0,10));
+        LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(FileInfo::getFileId, fileId.substring(0, 10));
         FileInfo one = fileInfoService.getOne(lambdaQueryWrapper);
         //文件实际所处的路径
         String substring = one.getFilePath().substring(0, 10);
@@ -310,7 +334,7 @@ public class ShowShareController {
         String path;
         if (fileId.endsWith(".ts")) {
             String[] split = fileId.split("_");
-            path = filepath + "\\" + substring + "\\" + substring+"_"+split[1];
+            path = filepath + "\\" + substring + "\\" + substring + "_" + split[1];
             log.info(path);
         } else {
             path = filepath + "\\" + substring + "\\" + substring + ".m3u8";
@@ -348,8 +372,8 @@ public class ShowShareController {
         String[] split = shareFileIds.split(",");
         for (String fileids : split) {
             //获得当前文件的所有信息
-            LambdaQueryWrapper<FileInfo> lambdaQueryWrapper1=new LambdaQueryWrapper<>();
-            lambdaQueryWrapper1.eq(FileInfo::getFileId,fileids).eq(FileInfo::getUserId,fileShare.getUserId());
+            LambdaQueryWrapper<FileInfo> lambdaQueryWrapper1 = new LambdaQueryWrapper<>();
+            lambdaQueryWrapper1.eq(FileInfo::getFileId, fileids).eq(FileInfo::getUserId, fileShare.getUserId());
             FileInfo one = fileInfoService.getOne(lambdaQueryWrapper1);
 
             //生成保存文件新的id信息
@@ -375,9 +399,12 @@ public class ShowShareController {
             fileInfo1.setCreateTime(LocalDateTime.now());
             fileInfoService.save(fileInfo1);
             //递归
-            duiGui(fileids, cookiesValueId, fileShare,newId);
+            duiGui(fileids, cookiesValueId, fileShare, newId);
         }
 
+        //数据发生变化，更新数据
+        String cachekey1 = String.format("fileInfo:user:%s:loadDataList", cookiesValueId);
+        redisTemplate.delete(cachekey1);
         return R.success("保存成功");
     }
 
@@ -387,17 +414,17 @@ public class ShowShareController {
      * @param fileid
      * @return
      */
-        @PostMapping("/createDownloadUrl/{www}/{id}")
+    @PostMapping("/createDownloadUrl/{www}/{id}")
     public R<String> createDownloadUrl(HttpSession session, @PathVariable("id") String fileid) {
-            //解决保存文件以及秒传文件，出现请求错误id的情况
+        //解决保存文件以及秒传文件，出现请求错误id的情况
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(FileInfo::getFileId, fileid);
         FileInfo one = fileInfoService.getOne(lambdaQueryWrapper);
         String substring = one.getFilePath().substring(0, 10);
-        return R.success(one.getFileMd5()+"_"+substring);
+        return R.success(one.getFileMd5() + "_" + substring);
     }
 
-       @GetMapping("/download/{code}")
+    @GetMapping("/download/{code}")
     public void getFile(@PathVariable("code") String filemd5, HttpServletResponse response, HttpSession session) throws IOException {
 
         try {
@@ -405,7 +432,7 @@ public class ShowShareController {
             String[] split = filemd5.split("_");
 
             LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
-            lambdaQueryWrappe.eq(FileInfo::getFileMd5, split[0]).eq(FileInfo::getFileId,split[1]);
+            lambdaQueryWrappe.eq(FileInfo::getFileMd5, split[0]).eq(FileInfo::getFileId, split[1]);
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             //创建输入流，读取传入的图片
             String path = filepath + "\\" + "\\" + one.getFilePath();
@@ -441,7 +468,7 @@ public class ShowShareController {
      * @param session
      * @throws IOException
      */
-        @PostMapping("/getFile/{www}/{imageName}")
+    @PostMapping("/getFile/{www}/{imageName}")
     public void getFileiamge(@PathVariable("imageName") String fileId, HttpServletResponse response, HttpSession session) throws IOException {
         try {
             LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
@@ -471,7 +498,7 @@ public class ShowShareController {
 
     @Transactional
     //递归查询当前目录下还存在子目录
-    public void duiGui(String fileId, String cookiesValueId, FileShare fileShare,String pidid) {
+    public void duiGui(String fileId, String cookiesValueId, FileShare fileShare, String pidid) {
         //先对这个文件或目录进行保存
         LambdaQueryWrapper<FileInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(FileInfo::getFilePid, fileId);
@@ -504,7 +531,7 @@ public class ShowShareController {
                 fileInfoService.save(fileInfo1);
 
                 //递归
-                duiGui(fileInfo.getFileId(), cookiesValueId, fileShare,newId);
+                duiGui(fileInfo.getFileId(), cookiesValueId, fileShare, newId);
             }
             //如果是文件，进行保存
             else {

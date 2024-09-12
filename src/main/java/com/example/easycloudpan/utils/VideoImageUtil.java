@@ -6,6 +6,8 @@ import com.example.easycloudpan.service.FileInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +21,10 @@ import java.math.BigDecimal;
 public class VideoImageUtil {
     @Autowired
     private FileInfoService fileInfoService;
+    @Autowired
+    private RedisTemplate redisTemplate;
+    @Value("${easycloudpan.rootuser}")
+    private String root;
 
     /**
      * @param file           原始图像文件，作为输入进行处理。
@@ -88,7 +94,7 @@ public class VideoImageUtil {
     //利用java代码操作命令行窗口执行FFmpeg对视频进行切割，生成.m3u8索引文件和.ts切片文件
     //设为消息队列，提高用户体验
     @Async
-    public void cutFile4Video(String fileId, String videoFilePath, String path) throws Exception {
+    public void cutFile4Video(String fileId, String videoFilePath, String path, String userid) throws Exception {
         //临时路径
         String temppath = "E:\\code\\java\\EasyCloudPan\\src\\main\\resources\\res\\file\\1784458528288247809\\temp.mp4";
 
@@ -135,6 +141,12 @@ public class VideoImageUtil {
         //更新数据库
         LambdaUpdateWrapper<FileInfo> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
         lambdaUpdateWrapper.eq(FileInfo::getFileId, fileId).set(FileInfo::getStatus, 2).set(FileInfo::getFileCover, fileId + ".png");
+        String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid);
+        //输出发生变化,删除键值
+        redisTemplate.delete(cachekey1);
+        //数据发生更新
+        String cachekey2 = String.format("admin:user:%s:loadUserList", root);
+        redisTemplate.delete(cachekey2);
         fileInfoService.update(lambdaUpdateWrapper);
     }
 }
