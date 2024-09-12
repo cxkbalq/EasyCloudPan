@@ -1,12 +1,18 @@
 #开发环境
 db:
-  hostmysql: localhost
+  hostmysql: 192.168.3.102
   pw: 2004
-  hostredis: localhost
+  hostredis: 127.0.0.1
+
 path:
-  lujin: E:\code\java\EasyCloudPan\src\main\resources\res\image\
-  temp:  D:\Downloads\temp\
-  file: D:\Downloads\file\
+  lujin: /home/cxkbalq/file/lujing/
+  temp:  /home/cxkbalq/file/temp/
+  file: /home/cxkbalq/file/file
+
+#path:
+#  lujin: E:\code\java\EasyCloudPan\src\main\resources\res\image\
+#  temp:  D:\Downloads\temp\
+#  file: D:\Downloads\file\
 #  imag: D:\Downloads\file\
 #  mp4: D:\Downloads\file\
 #  orter: D:\Downloads\file\

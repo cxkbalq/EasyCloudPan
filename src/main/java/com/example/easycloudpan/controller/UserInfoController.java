@@ -197,7 +197,7 @@ public class UserInfoController {
         String sessionCode = String.valueOf(session.getAttribute("CODE")).toLowerCase();
 //        log.info(email);
 //        log.info(password);
-        if (sessionCode.equals(checkCode)) {
+        if (!sessionCode.equals(checkCode)) {
             LambdaQueryWrapper<UserInfo> lambdaQueryWrapper = new LambdaQueryWrapper<>();
             lambdaQueryWrapper.eq(UserInfo::getEmail, email).eq(UserInfo::getPassword, password);
             UserInfo one = userInfoServise.getOne(lambdaQueryWrapper);

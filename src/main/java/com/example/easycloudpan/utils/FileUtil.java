@@ -49,7 +49,7 @@ public class FileUtil {
     public Boolean isExist(String md5) {
         List<FileInfo> one = fileInfoService.list(new LambdaQueryWrapper<FileInfo>().eq(FileInfo::getFileMd5, md5));
         //如果存在这个文件
-        if (one.size()>=1) {
+        if (one.size() >= 1) {
             return true;
         } else {
             return false;
@@ -182,6 +182,7 @@ public class FileUtil {
                 uploadResultVO.setStatus("uploading");
                 return uploadResultVO;
             } catch (IOException e) {
+                e.printStackTrace();
                 log.error("上传失败");
                 uploadResultVO.setId(fileUploadDTO.getId());
                 //上传失败
@@ -194,16 +195,16 @@ public class FileUtil {
     //文件切片，封面，图片缩略图获取
     public Boolean videoImageChuLi(Integer type, String filename, HttpSession session, String fileId) throws Exception {
         String userid = session.getAttribute("userid").toString();
-        String outputFile = filepath  + "\\" + filename;
+        String outputFile = filepath + File.separator + filename;
         //进行视频处理
         if (type == 1) {
-        //    D:\Downloads\file\1784458528288247809\RYzvdHGlUN7zwoIgSKJZinput.mp4
-            videoImageUtil.cutFile4Video(fileId, outputFile, filepath,userid);
-            videoImageUtil.createCover4Video(new File(outputFile), 300, new File(filepath + "\\" + "croveImage" + "\\" + fileId + ".png"));
+            //    D:\Downloads\file\1784458528288247809\RYzvdHGlUN7zwoIgSKJZinput.mp4
+            videoImageUtil.cutFile4Video(fileId, outputFile, filepath, userid);
+            videoImageUtil.createCover4Video(new File(outputFile), 300, new File(filepath + File.separator + "croveImage" + File.separator + fileId + ".png"));
         }
         //进行图片处理
         if (type == 3) {
-            videoImageUtil.compressImage(new File(outputFile), 300, new File(filepath +"\\" + "croveImage"+"\\"+ fileId + ".png"), false,fileId);
+            videoImageUtil.compressImage(new File(outputFile), 300, new File(filepath + File.separator + "croveImage" + File.separator + fileId + ".png"), false, fileId);
         }
         return true;
     }
@@ -228,23 +229,21 @@ public class FileUtil {
     public Long heBing(FileUploadDTO fileUploadDTO, HttpSession session, String filename) throws IOException {
         /*        String filename=filename1.trim();*/
         log.info("开始文件合并");
-        String outputFile = filepath +  "\\" + filename;
-
+        log.info("MD5:" + fileUploadDTO.getFileMd5());
+        log.info("文件名：" + filename);
+        log.info(String.valueOf(fileUploadDTO.getChunks()));
+        String outputFile = filepath + File.separator + filename;
+        log.info("文件输出路径：" + outputFile);
         try (RandomAccessFile outputRaf = new RandomAccessFile(outputFile, "rw");
              FileChannel outputChannel = outputRaf.getChannel()) {
             long position = 0;
             for (int i = 0; i < fileUploadDTO.getChunks(); i++) {
-                String inputFile = temppath + fileUploadDTO.getFileMd5() + "." + String.valueOf(i);
+                String inputFile = temppath + fileUploadDTO.getFileMd5() + "." + i;
                 try (RandomAccessFile inputRaf = new RandomAccessFile(inputFile, "r");
                      FileChannel inputChannel = inputRaf.getChannel()) {
                     long size = inputChannel.size();
-                    MappedByteBuffer inputBuffer = inputChannel.map(FileChannel.MapMode.READ_ONLY, 0, size);
-                    MappedByteBuffer outputBuffer = outputChannel.map(FileChannel.MapMode.READ_WRITE, position, size);
-                    outputBuffer.put(inputBuffer);
+                    outputChannel.transferFrom(inputChannel, position, size);
                     position += size;
-                    // 手动清理 MappedByteBuffer这个会占用文件的句柄需要释放了
-                    clean(inputBuffer);
-                    clean(outputBuffer);
                 }
             }
             // 关闭输出文件的 RandomAccessFile 和 FileChannel
@@ -257,7 +256,7 @@ public class FileUtil {
                 File file = new File(inputFile);
                 boolean delete = file.delete();
                 if (delete) {
-                    log.info("删除成功！");
+                    log.info("删除成功！"+inputFile);
                 } else {
                     log.error("删除失败！" + inputFile);
                 }
@@ -350,5 +349,4 @@ public class FileUtil {
             }
         }
     }
-
 }

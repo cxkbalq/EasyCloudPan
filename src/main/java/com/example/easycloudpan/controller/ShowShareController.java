@@ -35,10 +35,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -334,10 +331,10 @@ public class ShowShareController {
         String path;
         if (fileId.endsWith(".ts")) {
             String[] split = fileId.split("_");
-            path = filepath + "\\" + substring + "\\" + substring + "_" + split[1];
+            path = filepath + File.separator + substring + File.separator + substring + "_" + split[1];
             log.info(path);
         } else {
-            path = filepath + "\\" + substring + "\\" + substring + ".m3u8";
+            path = filepath + File.separator + substring + File.separator + substring + ".m3u8";
         }
         fileUtil.readFile(response, path);
     }
@@ -435,7 +432,7 @@ public class ShowShareController {
             lambdaQueryWrappe.eq(FileInfo::getFileMd5, split[0]).eq(FileInfo::getFileId, split[1]);
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             //创建输入流，读取传入的图片
-            String path = filepath + "\\" + "\\" + one.getFilePath();
+            String path = filepath + File.separator + File.separator + one.getFilePath();
             response.setContentType("application/octet-stream");
             // 对文件名进行 URL 编码,解决前端无法识别空格导致下载格式异常的问题
             String encodedFileName = URLEncoder.encode(one.getFileName(), StandardCharsets.UTF_8.toString())
@@ -476,7 +473,7 @@ public class ShowShareController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = filepath + "\\" + "\\" + one.getFilePath();
+            String path = filepath + File.separator + File.separator + one.getFilePath();
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();

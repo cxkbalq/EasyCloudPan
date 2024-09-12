@@ -113,4 +113,3 @@ mybatis-plus:
 logging:
   level:
     org.springframework.jdbc.support.JdbcTransactionManager: debug
-

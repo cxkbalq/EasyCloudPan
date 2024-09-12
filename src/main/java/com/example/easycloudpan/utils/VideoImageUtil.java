@@ -25,7 +25,8 @@ public class VideoImageUtil {
     private RedisTemplate redisTemplate;
     @Value("${easycloudpan.rootuser}")
     private String root;
-
+    @Value("${easycloudpan.temppath}")
+    private String temppath1;
     /**
      * @param file           原始图像文件，作为输入进行处理。
      * @param thumbnailWidth 指定的缩略图宽度。
@@ -96,10 +97,10 @@ public class VideoImageUtil {
     @Async
     public void cutFile4Video(String fileId, String videoFilePath, String path, String userid) throws Exception {
         //临时路径
-        String temppath = "E:\\code\\java\\EasyCloudPan\\src\\main\\resources\\res\\file\\1784458528288247809\\temp.mp4";
+        String temppath = temppath1;
 
         //创建同名切片目录
-        File tsFolder = new File(path + "\\" + fileId);
+        File tsFolder = new File(path + File.separator + fileId);
         if (!tsFolder.exists()) {
             tsFolder.mkdirs();
         }
@@ -111,7 +112,7 @@ public class VideoImageUtil {
         //生成m3u8文件，以及ts切片
         final String CMD_CUT_TS = "ffmpeg -i %s -c copy -map 0 -f segment -segment_list %s -segment_time 5 %s/%s_%%4d.ts";
         //切片路径
-        String tsPath = tsFolder + "/" + fileId + ".ts";
+        String tsPath = tsFolder + File.separator + fileId + ".ts";
 
         //格式转换，防止出现出错
         String cmd = String.format(CMD_TRANSFER_TO_H264, "\"" + videoFilePath + "\"", temppath);

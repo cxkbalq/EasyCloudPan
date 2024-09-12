@@ -134,7 +134,7 @@ public class CommonController {
             //创建输入流，读取传入的图片
             String[] split = imageName.split("\\.");
 
-            String path = fileimagepath + "\\" + "croveImage" + "\\" + imageName;
+            String path = fileimagepath + File.separator + "croveImage" + File.separator + imageName;
 
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
@@ -166,7 +166,7 @@ public class CommonController {
         try {
             log.info(imageName);
             //创建输入流，读取传入的图片
-            String path = fileimagepath + "\\" + "croveImage" + "\\" + imageName;
+            String path = fileimagepath + File.separator + "croveImage" + File.separator + imageName;
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();
@@ -203,7 +203,7 @@ public class CommonController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = fileimagepath + "\\" + "\\" + one.getFilePath();
+            String path = fileimagepath + File.separator + File.separator + one.getFilePath();
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();
@@ -242,7 +242,7 @@ public class CommonController {
             lambdaQueryWrappe.eq(FileInfo::getFileMd5, split[0]).eq(FileInfo::getFileId, split[1]);
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             //创建输入流，读取传入的图片
-            String path = fileimagepath + "\\" + "\\" + one.getFilePath();
+            String path = fileimagepath + File.separator + File.separator + one.getFilePath();
             response.setContentType("application/octet-stream");
             // 对文件名进行 URL 编码,解决前端无法识别空格导致下载格式异常的问题
             String encodedFileName = URLEncoder.encode(one.getFileName(), StandardCharsets.UTF_8.toString())
@@ -291,7 +291,7 @@ public class CommonController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = fileimagepath + "\\" + "\\" + one.getFilePath();
+            String path = fileimagepath + File.separator + File.separator + one.getFilePath();
             response.setContentType("application/octet-stream");
             // 对文件名进行 URL 编码,解决前端无法识别空格导致下载格式异常的问题
             String encodedFileName = URLEncoder.encode(one.getFileName(), StandardCharsets.UTF_8.toString())
@@ -341,7 +341,7 @@ public class CommonController {
             FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
             log.info(one.getFileName());
             //创建输入流，读取传入的图片
-            String path = fileimagepath + "\\" + "\\" + one.getFilePath();
+            String path = fileimagepath + File.separator + File.separator + one.getFilePath();
             FileInputStream fileInputStream = new FileInputStream(path);
             //创建输出流，向浏览器发生读取的数据
             ServletOutputStream outputStream = response.getOutputStream();

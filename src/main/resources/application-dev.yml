@@ -3,5 +3,10 @@ db:
   hostmysql: mysql
   pw: 2004
   hostredis: redis
+
+
+
 path:
-  lujin: /imge/
+  lujin: /file/lujing/
+  temp:  /file/temp/
+  file: /file/file/

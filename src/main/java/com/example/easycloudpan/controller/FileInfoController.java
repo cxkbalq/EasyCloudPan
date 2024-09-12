@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import java.io.File;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -177,10 +178,10 @@ public class FileInfoController {
             String path;
             if (fileId.endsWith(".ts")) {
                 String[] split = fileId.split("_");
-                path = filepath + "\\" + substring + "\\" + substring + "_" + split[1];
+                path = filepath + File.separator + substring + File.separator + substring + "_" + split[1];
                 log.info(path);
             } else {
-                path = filepath + "\\" + substring + "\\" + substring + ".m3u8";
+                path = filepath + File.separator + substring + File.separator + substring + ".m3u8";
             }
             fileUtil.readFile(response, path);
         }

@@ -339,9 +339,9 @@ public class AdminController {
         String path;
         if (fileId.endsWith(".ts")) {
             String[] split = fileId.split("_");
-            path = filepath + "\\" + split[0] + "\\" + fileId;
+            path = filepath + File.separator + split[0] + File.separator + fileId;
         } else {
-            path = filepath + "\\" + fileId + "\\" + fileId + ".m3u8";
+            path = filepath + File.separator + fileId + File.separator + fileId + ".m3u8";
         }
         fileUtil.readFile(response, path);
     }

@@ -1,0 +1,57 @@
+version: "3.8"
+services:
+  mysql:
+    image: mysql:8.0.34
+    container_name: mysql
+    ports:
+      - "3308:3306"
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: 2004
+    networks:
+      - cxkbalq
+    volumes:
+      #构建基本表结构
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --init-file=/docker-entrypoint-initdb.d/init.sql
+  java_jar:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: java_jar
+    ports:
+      - "8082:8080"
+    volumes:
+      - "./file/file:/file/file"
+      - "./file/temp:/file/temp"
+      - "./file/lujing:/file/lujing"
+    networks:
+      - cxkbalq
+    depends_on:
+      - mysql
+  nginx:
+    image: nginx
+    container_name: nginx
+    ports:
+      - "80:88"
+    volumes:
+      - "./nginx.conf:/etc/nginx/nginx.conf"
+      - "./html:/usr/share/nginx/html"
+    depends_on:
+      - java_jar
+    networks:
+      - cxkbalq
+  redis:
+    image: redis:3
+    container_name: redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - /root/docker/redis/data:/data
+      - /root/docker/redis/conf/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - cxkbalq
+    command: redis-server /usr/local/etc/redis/redis.conf
+networks:
+  cxkbalq:
+    name: cxkbalq1
