@@ -24,23 +24,23 @@
 
 
 
-**播放：**![2](image\2.png)
+**播放：**![2](https://github.com/cxkbalq/EasyCloudPan/blob/master/image/2.png)
 
 
 
 **分享：**
 
-![3](image\3.png)
+![3](https://github.com/cxkbalq/EasyCloudPan/blob/master/image/3.png)
 
 
 
-**回收站：![2](image\4.png)**
+**回收站：![2](https://github.com/cxkbalq/EasyCloudPan/blob/master/image/4.png)**
 
-**管理员：**![2](image\5.png)
+**管理员：**![2](https://github.com/cxkbalq/EasyCloudPan/blob/master/image/5.png)
 
 
 
-**更加美观的邮箱发送：**![2](image\6.png)
+**更加美观的邮箱发送：**![2](https://github.com/cxkbalq/EasyCloudPan/blob/master/image/6.png)
 
 
 
