@@ -32,9 +32,9 @@ import java.util.UUID;
 @RequestMapping()
 @Slf4j
 public class CommonController {
-    @Value("${easycloudpan.imgepath}")
+    @Value("${easycloudpan.path.imgepath}")
     private String imgepath;
-    @Value("${easycloudpan.filepath}")
+    @Value("${easycloudpan.path.filepath}")
     private String fileimagepath;
     @Autowired
     private FileInfoService fileInfoService;
@@ -195,8 +195,35 @@ public class CommonController {
      * @param session
      * @throws IOException
      */
-    @PostMapping("/file/getFile/{imageName}")
+    @GetMapping("/file/getFile/{imageName}")
     public void getFileiamge(@PathVariable("imageName") String fileId, HttpServletResponse response, HttpSession session) throws IOException {
+        try {
+            LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
+            lambdaQueryWrappe.eq(FileInfo::getFileId, fileId);
+            FileInfo one = fileInfoService.getOne(lambdaQueryWrappe);
+            log.info(one.getFileName());
+            //创建输入流，读取传入的图片
+            String path = fileimagepath + File.separator + File.separator + one.getFilePath();
+            FileInputStream fileInputStream = new FileInputStream(path);
+            //创建输出流，向浏览器发生读取的数据
+            ServletOutputStream outputStream = response.getOutputStream();
+//            response.setContentType("image/png");
+            int len = 1;
+            //定义一次传入可以的最大字节
+            byte[] bytes = new byte[2048];
+            while ((len = fileInputStream.read(bytes)) != -1) {
+                outputStream.write(bytes, 0, len);
+                //刷新输出流，确保所有数据都被写入到输出目标中。
+                outputStream.flush();
+            }
+            fileInputStream.close();
+            outputStream.close();
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+        @PostMapping("/file/getFile/{imageName}")
+    public void getOutputStream(@PathVariable("imageName") String fileId, HttpServletResponse response, HttpSession session) throws IOException {
         try {
             LambdaQueryWrapper<FileInfo> lambdaQueryWrappe = new LambdaQueryWrapper<>();
             lambdaQueryWrappe.eq(FileInfo::getFileId, fileId);

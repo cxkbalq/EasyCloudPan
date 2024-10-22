@@ -56,7 +56,7 @@ public class UserInfoController {
     private EmailCodeService emailCodeService;
     @Autowired
     private UserInfoServise userInfoServise;
-    @Value("${easycloudpan.filepath}")
+    @Value("${easycloudpan.path.filepath}")
     private String filepath;
     @Value("${easycloudpan.rootuser}")
     private String root;
@@ -156,7 +156,7 @@ public class UserInfoController {
                 String s = DigestUtils.md5DigestAsHex(password.getBytes());
                 userInfo.setPassword(s);
                 userInfo.setNickName(nickName);
-                userInfo.setTotalSpace(524288000l);
+                userInfo.setTotalSpace(bytes);
                 userInfo.setUseSpace(0l);
                 userInfo.setStatus(1);
                 userInfo.setJoinTime(LocalDateTime.now());

@@ -1,114 +1,95 @@
 //package com.example.easycloudpan;
 //
-//import com.example.easycloudpan.pojo.dto.FileUploadDTO;
-//import com.example.easycloudpan.utils.MailUtil;
 //import lombok.extern.slf4j.Slf4j;
 //import org.junit.jupiter.api.Test;
 //import org.springframework.beans.factory.annotation.Autowired;
 //import org.springframework.beans.factory.annotation.Value;
-//import org.springframework.boot.convert.DataSizeUnit;
 //import org.springframework.boot.test.context.SpringBootTest;
-//import org.thymeleaf.TemplateEngine;
-//import org.thymeleaf.context.Context;
 //
-//import javax.mail.MessagingException;
-//import javax.servlet.http.HttpSession;
+//import java.io.BufferedReader;
 //import java.io.File;
 //import java.io.IOException;
-//import java.io.RandomAccessFile;
-//import java.lang.reflect.Method;
-//import java.nio.MappedByteBuffer;
-//import java.nio.channels.FileChannel;
+//import java.io.InputStreamReader;
+//import java.util.ArrayList;
+//import java.util.List;
 //
 //@SpringBootTest
 //@Slf4j
-//class EasyCloudPanApplicationTests {
-//
-//    @Test
-//    void contextLoads() {
-//    }
-//
-//    @Autowired
-//    private MailUtil sendEmailService;
-//    @Autowired
-//    private TemplateEngine templateEngine;
-//    @Value("${easycloudpan.sys_diskspace}")
-//    private String diskFreeSpace;
-//    @Value("${easycloudpan.temppath}")
+//class FfmpegProcessingTime {
+//    @Value("${easycloudpan.path.temppath}")
 //    private String temppath;
-//    @Value("${easycloudpan.filepath}")
+//    @Value("${easycloudpan.path.filepath}")
 //    private String filepath;
+//    @Value("${easycloudpan.path.imgepath}")
+//    private String imgepath;
+//    @Value("${easycloudpan.path.croveImage}")
+//    private String imgepcrove;
+//    public static void main(String[] args) {
+//        String inputFilePath = "path/to/your/input/file.mp4"; // 输入文件路径
+//        String outputFilePath = "path/to/your/output/file.mp4"; // 输出文件路径
 //
+//        try {
+//            long startTime = System.currentTimeMillis(); // 开始时间
+//
+//            // 构建 FFmpeg 命令
+//            ProcessBuilder processBuilder = new ProcessBuilder("ffmpeg", "-i", inputFilePath, outputFilePath);
+//            processBuilder.redirectErrorStream(true); // 合并标准输出和错误输出
+//
+//            // 启动进程并读取输出
+//            Process process = processBuilder.start();
+//            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+//
+//            String line;
+//            while ((line = reader.readLine()) != null) {
+//                System.out.println(line); // 打印 FFmpeg 输出
+//            }
+//
+//            int exitCode = process.waitFor(); // 等待进程结束
+//            long endTime = System.currentTimeMillis(); // 结束时间
+//
+//            // 处理时间
+//            if (exitCode == 0) {
+//                long processingTime = endTime - startTime; // 计算处理时间
+//                System.out.printf("Processing time: %.2f seconds%n", processingTime / 1000.0);
+//            } else {
+//                System.err.println("FFmpeg process failed with exit code: " + exitCode);
+//            }
+//        } catch (IOException | InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//    }
 //
 //    @Test
-//     //合并文件
-//    public void heBing() throws IOException {
+//    public void test() {
+//        String diskFreeSpace="C";
 //
-//        FileUploadDTO fileUploadDTO=new FileUploadDTO();
-//        fileUploadDTO.setFilename("test.mp4");
-//        fileUploadDTO.setChunks(27);
-//        fileUploadDTO.setFileMd5("9c813fe7a11606dc049ced03042ce7e9");
-//        String filename="test.mp4";
-//        log.info("开始文件合并");
-//        String outputFile = filepath +  File.separator + filename;
-//        log.info(outputFile);
-//        try (RandomAccessFile outputRaf = new RandomAccessFile(outputFile, "rw");
-//             FileChannel outputChannel = outputRaf.getChannel()) {
-//            long position = 0;
-//            for (int i = 0; i < fileUploadDTO.getChunks(); i++) {
-//                String inputFile = temppath + fileUploadDTO.getFileMd5() + "." + String.valueOf(i);
-//                try (RandomAccessFile inputRaf = new RandomAccessFile(inputFile, "r");
-//                     FileChannel inputChannel = inputRaf.getChannel()) {
-//                    long size = inputChannel.size();
-//                    MappedByteBuffer inputBuffer = inputChannel.map(FileChannel.MapMode.READ_ONLY, 0, size);
-//                    MappedByteBuffer outputBuffer = outputChannel.map(FileChannel.MapMode.READ_WRITE, position, size);
-//                    outputBuffer.put(inputBuffer);
-//                    position += size;
-//                    // 手动清理 MappedByteBuffer这个会占用文件的句柄需要释放了
-//                    //clean(inputBuffer);
-//                  //  clean(outputBuffer);
+//        File diskPartition = new File( diskFreeSpace+ ":"); // 根目录，或指定其他目录
+//        long freeSpace = diskPartition.getUsableSpace(); // 获取剩余空间
+//        System.out.println(freeSpace);
+//    }
+//    @Test
+//    public void run() {
+//        log.info("开始进行目录完整性检查");
+//        List<String> list=new ArrayList<>();
+//        list.add(temppath);
+//        list.add(filepath);
+//        list.add(imgepath);
+//        list.add(imgepcrove);
+//        // 获取路径映射
+//        for (String path: list) {
+//            File directory = new File(path);
+//            if (!directory.exists()) {
+//                boolean created = directory.mkdirs(); // 创建目录，包括任何必要但不存在的父目录
+//                if (created) {
+//                    log.info("目录创建成功: " + path);
+//                } else {
+//                    log.info("目录创建失败: " + path);
 //                }
+//            } else {
+//                log.info("目录已存在: " + path);
 //            }
-//            // 关闭输出文件的 RandomAccessFile 和 FileChannel
-//         //   outputRaf.close();
-//          //  outputChannel.close();
-//
-//            log.info("文件合并成功！");
-////            for (int i = 0; i < fileUploadDTO.getChunks(); i++) {
-////                String inputFile = temppath + fileUploadDTO.getFileMd5() + "." + String.valueOf(i);
-////                File file = new File(inputFile);
-////                boolean delete = file.delete();
-////                if (delete) {
-////                    log.info("删除成功！");
-////                } else {
-////                    log.error("删除失败！" + inputFile);
-////                }
-////            }
-//            //log.info("临时文件清理成功！");
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            log.error("文件合并错误！");
-//            return ;
 //        }
-//        File file = new File(outputFile);
-//        long length = file.length();
-//        log.info("当前文件大小："+String.valueOf(length));
-//        return;
 //    }
-//    private void clean(MappedByteBuffer buffer) {
-//        if (buffer == null) return;
-//        try {
-//            Method cleanerMethod = buffer.getClass().getMethod("cleaner");
-//            cleanerMethod.setAccessible(true);
-//            Object cleaner = cleanerMethod.invoke(buffer);
-//            if (cleaner != null) {
-//                Method cleanMethod = cleaner.getClass().getMethod("clean");
-//                cleanMethod.invoke(cleaner);
-//            }
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
 //    }
 //
 //
-//}

@@ -40,9 +40,9 @@ public class FileUtil {
     RedisTemplate redisTemplate;
     @Autowired
     VideoImageUtil videoImageUtil;
-    @Value("${easycloudpan.temppath}")
+    @Value("${easycloudpan.path.temppath}")
     private String temppath;
-    @Value("${easycloudpan.filepath}")
+    @Value("${easycloudpan.path.filepath}")
     private String filepath;
 
     //秒传判断
@@ -167,7 +167,7 @@ public class FileUtil {
                 videoImageChuLi(fileType, s, session, s1);
                 return uploadResultVO;
             } catch (IOException e) {
-                log.error("上传失败");
+                log.error("上传失败"+e.getMessage());
                 uploadResultVO.setId(fileUploadDTO.getId());
                 //上传失败
                 uploadResultVO.setStatus("fail");
@@ -183,7 +183,7 @@ public class FileUtil {
                 return uploadResultVO;
             } catch (IOException e) {
                 e.printStackTrace();
-                log.error("上传失败");
+                log.error("上传失败"+e.getMessage());
                 uploadResultVO.setId(fileUploadDTO.getId());
                 //上传失败
                 uploadResultVO.setStatus("fail");
@@ -298,6 +298,9 @@ public class FileUtil {
             e.printStackTrace();
         }
     }
+
+
+    //
 
     //文件初始化
     private boolean inIt(FileUploadDTO fileUploadDTO, Integer integer) {

@@ -11,7 +11,7 @@ public class FileShareDto2 implements Serializable {
     private String fileId;
     private String userId;
     private String fileMd5;
-    private int filePid;
+    private String filePid;
     private String fileSize;
     private String fileName;
     private String fileCover;

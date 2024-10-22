@@ -60,7 +60,7 @@ public class ShowShareController {
     private RedisTemplate redisTemplate;
     @Autowired
     private CookieUtil cookieUtil;
-    @Value("${easycloudpan.filepath}")
+    @Value("${easycloudpan.path.filepath}")
     private String filepath;
     @Autowired
     private FileUtil fileUtil;

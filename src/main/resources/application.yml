@@ -1,37 +1,37 @@
-
 #自定义配置
 #自定义配置    这里是关于云盘的配置，云盘默认空间是5Gb，如需修改，请登录管理员账号进行修改
 #自定义配置
 easycloudpan:
-  #头像储存位置
-  imgepath: ${path.lujin}
-  #上传文件以及处理临时路径
-  temppath: ${path.temp}
-  #文件储存位置
-  filepath: ${path.file}
+  path:
+    #头像储存位置
+    imgepath: ${path.lujin}
+    #上传文件以及处理临时路径
+    temppath: ${path.temp}
+    #文件储存位置
+    filepath: ${path.file}
+    #缩略图
+    croveImage: ${path.croveImage}
   #root账号设置
   rootuser: 1951196623@qq.com
   #为系统保留的空间(数据库，redis，以及缓存的空间，单位Gb)
-  sys_space: 10
-  #文件所储存在的盘符（默认为C盘）
-  sys_diskspace: D
+  sys_space: 2
+  #文件所储存在的盘符（默认为C盘）(如果你是linux请填写具体目录)
+  sys_diskspace: C
+
 #ffmpeg
 ffmpeg:
-  ffmpegFile: D:/tools/ffmpeg/bin/ffmpeg.exe #ffmpeg可执行文件路径
-  outputVideoSuffix: .mp4 #输出视频的后缀名
-  outputCoverSuffix: .jpg #输出缩略图的后缀名
+  pingjunTimeEnable: true  #这个如果开启，每次启动时，会自己从云端下载一些测试视频，并进行处理，获得平
+                            #均时间，在视频处理时的转化时间将不会写死，防止当视频过大，频繁发送请求
+  mp4YaSuo: true   #是否开启视频压缩（云端建议开启）
 #自定义配置
 #自定义配置    这里是关于云盘的配置，云盘默认空间是5Gb，如需修改，请登录管理员账号进行修改
 #自定义配置     数据库，redis在下面，以及开发环境修改
-
-
-
 
 server:
   port: 8080
   tomcat:
     uri-encoding: UTF-8
-    max-http-header-size: 8192
+    max-http-header-size: 8190
   #添加路径信息
   servlet:
     context-path: /api
@@ -41,6 +41,7 @@ spring:
     url: jdbc:mysql://${db.hostmysql}:3306/easypan
     username: root
     password: ${db.pw}
+#    password: 2004
     #时间同一格式，但是未生效
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss

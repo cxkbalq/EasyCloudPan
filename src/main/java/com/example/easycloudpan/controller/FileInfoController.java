@@ -43,7 +43,7 @@ public class FileInfoController {
     @Autowired
     private RedisTemplate redisTemplate;
     //文件路径
-    @Value("${easycloudpan.filepath}")
+    @Value("${easycloudpan.path.filepath}")
     private String filepath;
 
 
@@ -56,7 +56,6 @@ public class FileInfoController {
                                        @RequestParam(required = false) String pageNo,
                                        @RequestParam(required = false) String pageSize) {
         log.info("当前类型为：" + category);
-
         //转化类型
         String[] typelist = {"all", "video", "music", "image", "doc", "others"};
         int type = Arrays.asList(typelist).indexOf(category);
@@ -70,7 +69,7 @@ public class FileInfoController {
                 userid, type, filePid, fileNameFuzzy, pageNo, pageSize);
 
         String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid);
-
+        log.info("用户id为：" + userid.toString());
         //判断数据是否以及被修改
         if (redisTemplate.opsForValue().get(cachekey1) == null) {
             //为空已经被修改,删除所有原数据
@@ -115,7 +114,7 @@ public class FileInfoController {
         fileInfoDto.setPageTotal(page1.getTotal());
         fileInfoDto.setTotalCount(page1.getCurrent());
         // 更新缓存
-        redisTemplate.opsForValue().set(cacheKey, fileInfoDto, 60, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set(cacheKey, fileInfoDto, 10, TimeUnit.MINUTES);
 
         return R.success(fileInfoDto);
     }
@@ -130,6 +129,9 @@ public class FileInfoController {
                                         @RequestParam("chunkIndex") String chunkIndex,
                                         @RequestParam("chunks") String chunks,
                                         HttpSession session) throws Exception {
+        if(fileName.length()>100){
+            return R.error("孩子你的文件名太长了，要小于100哦");
+        }
 
         String userid = session.getAttribute("userid").toString();
         String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid);
@@ -168,7 +170,7 @@ public class FileInfoController {
             lambdaQueryWrapper.eq(FileInfo::getFileId, fileId.substring(0, 10));
             one = fileInfoService.getOne(lambdaQueryWrapper);
             if (one != null) {
-                valueOperations.set(cacheKey, one, 10, TimeUnit.MINUTES);
+                valueOperations.set(cacheKey, one, 30, TimeUnit.SECONDS);
             }
         }
         if (one != null) {
@@ -258,7 +260,7 @@ public class FileInfoController {
             if (redisTemplate.opsForValue().get(cachekey1) == null) {
                 //为空已经被修改,删除原数据
                 redisTemplate.delete(cacheKey);
-                redisTemplate.opsForValue().set(cachekey1, 1, 10, TimeUnit.MINUTES);
+                redisTemplate.opsForValue().set(cachekey1, 1, 30, TimeUnit.SECONDS);
             }
             FileInfo fileInfo = valueOperations.get(cacheKey);
             if (fileInfo == null) {
@@ -268,7 +270,7 @@ public class FileInfoController {
                 fileInfo = fileInfoService.getOne(lambdaQueryWrapper);
 
                 if (fileInfo != null) {
-                    valueOperations.set(cacheKey, fileInfo, 60, TimeUnit.MINUTES);
+                    valueOperations.set(cacheKey, fileInfo, 60, TimeUnit.SECONDS);
                 }
             }
 
@@ -329,19 +331,20 @@ public class FileInfoController {
      */
 
     @PostMapping("/loadAllFolder")
-    public R<List<FileInfo>> loadAllFolder(HttpSession session) {
+    public R<List<FileInfo>> loadAllFolder(HttpSession session,
+                                           @RequestParam("filePid") String filePid) {
         String userid = session.getAttribute("userid").toString();
         // 构建缓存键
         String cacheKey = String.format("fileInfo:user:%s:folderList", userid);
-        String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid);
+        String cachekey1 = String.format("fileInfo:user:%s:loadDataList", userid+filePid);
         //判断数据是否以及被修改
         if (redisTemplate.opsForValue().get(cachekey1) == null) {
             //为空已经被修改,删除原数据
             redisTemplate.delete(cacheKey);
-            redisTemplate.opsForValue().set(cachekey1, 1, 10, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(cachekey1, 1, 30, TimeUnit.SECONDS);
         }
         // 从 Redis 获取缓存数据
-        List<FileInfo> cachedList = (List<FileInfo>) redisTemplate.opsForValue().get(cacheKey);
+        List<FileInfo> cachedList = (List<FileInfo>) redisTemplate.opsForValue().get(cachekey1);
         if (cachedList != null) {
             return R.success(cachedList);
         }
@@ -352,9 +355,14 @@ public class FileInfoController {
         List<FileInfo> list1 = new ArrayList<>();
         //创建默认目录
         FileInfo fileInfo = new FileInfo();
-        fileInfo.setFileId("0");
-        fileInfo.setFileName("根目录");
-        list1.add(fileInfo);
+        if (filePid != null) {
+            lambdaQueryWrapper.eq(FileInfo::getFilePid, filePid);
+        }
+        if (filePid.equals("0")) {
+            fileInfo.setFileId("0");
+            fileInfo.setFileName("根目录");
+            list1.add(fileInfo);
+        }
         List<FileInfo> list = fileInfoService.list(lambdaQueryWrapper);
         for (FileInfo x : list) {
             list1.add(x);
@@ -362,8 +370,8 @@ public class FileInfoController {
         if (list.size() == 0 || list == null) {
             R.error("当前未创建目录！");
         }
-        // 更新缓存
-        redisTemplate.opsForValue().set(cacheKey, list1, 10, TimeUnit.MINUTES);
+        //更新缓存
+        redisTemplate.opsForValue().set(cachekey1, list1, 30, TimeUnit.SECONDS);
         return R.success(list1);
     }
 

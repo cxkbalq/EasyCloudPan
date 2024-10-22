@@ -48,7 +48,7 @@ public class AdminController {
     private RedisTemplate redisTemplate;
     // 定义常量，1 MB = 1024 * 1024 字节
     //文件路径
-    @Value("${easycloudpan.filepath}")
+    @Value("${easycloudpan.path.filepath}")
     private String filepath;
     private static final long MEGABYTE_TO_BYTES = 1024L * 1024L;
 
@@ -371,7 +371,11 @@ public class AdminController {
         lambdaUpdateWrapper.set(FileInfo::getFengJing, status).set(FileInfo::getLastUpdateTime, LocalDateTime.now());
         if (fileInfoService.update(lambdaUpdateWrapper)) {
             //数据发生更新
+            //更新管理员的文件列表
             String cachekey1 = String.format("admin:user:%s:loadFileList", rootzh);
+            redisTemplate.delete(cachekey1);
+            //更新用户文件列表
+            String cachekey2 = String.format("fileInfo:user:%s:loadDataList", userid);
             redisTemplate.delete(cachekey1);
             return R.success("更新成功!");
         }

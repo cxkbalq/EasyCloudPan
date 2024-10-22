@@ -35,7 +35,7 @@ public class ProcessUtils {
             // 输出执行的命令信息
 
             if (outprintLog) {
-                log.info("执行命令:{}，已执行完毕,执行结果:{}", cmd, result);
+                log.info("执行命令:{}，已执行完毕,执行结果:{}", cmd);
             } else {
                 log.info("执行命令:{}，已执行完毕", cmd);
             }

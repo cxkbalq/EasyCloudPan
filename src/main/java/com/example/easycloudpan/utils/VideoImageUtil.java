@@ -25,8 +25,11 @@ public class VideoImageUtil {
     private RedisTemplate redisTemplate;
     @Value("${easycloudpan.rootuser}")
     private String root;
-    @Value("${easycloudpan.temppath}")
+    @Value("${easycloudpan.path.temppath}")
     private String temppath1;
+    @Value("${ffmpeg.mp4YaSuo}")
+    private String mp4YaSuo;
+
     /**
      * @param file           原始图像文件，作为输入进行处理。
      * @param thumbnailWidth 指定的缩略图宽度。
@@ -105,8 +108,16 @@ public class VideoImageUtil {
             tsFolder.mkdirs();
         }
 
-        //格式转换，防止出现出错
-        final String CMD_TRANSFER_TO_H264 = "ffmpeg -i %s -c:v libx264 -c:a copy %s";
+
+        //视频压缩，并转换格式
+        String CMD_TRANSFER_TO_H264 = "ffmpeg -i %s -c:v libx264 -preset veryfast -crf 28 -c:a aac -b:a 128k %s";
+        if (mp4YaSuo.equals("true")) {
+            log.info("已开启视频压缩!");
+            CMD_TRANSFER_TO_H264 = "ffmpeg -i %s -c:v libx264 -preset veryfast -crf 28 -c:a aac -b:a 128k %s";
+        } else {
+            CMD_TRANSFER_TO_H264 = "ffmpeg -i %s -c:v libx264 -preset veryfast -crf 0 -c:a aac -b:a 128k %s";
+        }
+
         //转换为ts
         final String CMD_TRANSFER_2TS = "ffmpeg -y -i %s  -vcodec copy -acodec copy -vbsf h264_mp4toannexb %s";
         //生成m3u8文件，以及ts切片
@@ -115,21 +126,21 @@ public class VideoImageUtil {
         String tsPath = tsFolder + File.separator + fileId + ".ts";
 
         //格式转换，防止出现出错
-        String cmd = String.format(CMD_TRANSFER_TO_H264, "\"" + videoFilePath + "\"", temppath);
+        String cmd = String.format(CMD_TRANSFER_TO_H264, "\"" + videoFilePath + "\"", temppath + fileId + ".mp4");
         ProcessUtils.executeCommand(cmd, true);
 
-        // 删除原始文件
-        File originalFile = new File(videoFilePath);
-        originalFile.delete();
-
-        // 重新命名文件
-        File newFile = new File(temppath);
-        newFile.renameTo(new File(videoFilePath));
 
         //生成index.ts
-        cmd = String.format(CMD_TRANSFER_2TS, "\"" + videoFilePath + "\"", tsPath);
+        cmd = String.format(CMD_TRANSFER_2TS, "\"" + temppath + fileId + ".mp4" + "\"", tsPath);
         log.info(cmd);
         ProcessUtils.executeCommand(cmd, true);
+        // 删除原始文件
+        File originalFile = new File(temppath + fileId + ".mp4");
+        originalFile.delete();
+
+//        // 重新命名文件
+//        File newFile = new File(temppath);
+//        newFile.renameTo(new File(videoFilePath));
 
         //生成索引文件.m3u8 和切片.ts
         cmd = String.format(CMD_CUT_TS, "\"" + tsPath + "\"", "\"" + tsFolder.getPath() + "/" + fileId + ".m3u8" + "\"", tsFolder.getPath(), fileId);
